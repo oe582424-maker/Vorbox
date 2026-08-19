@@ -58,15 +58,15 @@ export default function App() {
     return INITIAL_PRODUCTS;
   });
 
-  // 3. Cart State
+  // 3. User-Specific Cart State (Strictly Local Browser Storage Only - Never synced to backend)
   const [cart, setCart] = useState<CartItem[]>(() => {
-    const saved = localStorage.getItem('vbox_cart') || localStorage.getItem('crownborn_cart') || localStorage.getItem('vera_cart') || localStorage.getItem('vorbox_cart');
-    if (saved) {
-      try {
+    try {
+      const saved = localStorage.getItem('vbox_cart');
+      if (saved) {
         return JSON.parse(saved);
-      } catch (e) {
-        console.error(e);
       }
+    } catch (e) {
+      console.error('Error loading private local cart:', e);
     }
     return [];
   });
