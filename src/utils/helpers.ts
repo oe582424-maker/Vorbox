@@ -4,14 +4,47 @@ export function formatBDT(amount: number): string {
   return `৳${amount.toLocaleString('en-BD')}`;
 }
 
-export function cleanPhoneForWhatsApp(phone: string): string {
-  const digitsOnly = phone.replace(/[^0-9]/g, '');
+// Fallback business numbers for Vorbox (Bangladesh format)
+export const DEFAULT_BUSINESS_WHATSAPP = '8801866068916';
+export const SECONDARY_BUSINESS_WHATSAPP = '8801982135000';
+
+export function cleanPhoneForWhatsApp(phone?: string | null): string {
+  // 1. Check environment variable override or provided phone
+  const raw = phone?.trim() || (import.meta.env?.VITE_WHATSAPP_NUMBER as string)?.trim() || DEFAULT_BUSINESS_WHATSAPP;
+  
+  // 2. Strip all non-digit characters (+, -, spaces, parentheses)
+  let digitsOnly = raw.replace(/\D/g, '');
+
+  // 3. Normalize international and Bangladesh regional dialing codes
+  if (digitsOnly.startsWith('0088')) {
+    digitsOnly = digitsOnly.slice(2);
+  }
+  
+  // If Bangladesh local number e.g. 018XXXXXXXX or 019XXXXXXXX or 017XXXXXXXX (11 digits)
   if (digitsOnly.startsWith('01') && digitsOnly.length === 11) {
     return `88${digitsOnly}`;
   }
-  if (digitsOnly.startsWith('880')) {
+
+  // If 10 digits without leading 0 e.g. 18XXXXXXXX or 19XXXXXXXX
+  if (digitsOnly.length === 10 && (digitsOnly.startsWith('18') || digitsOnly.startsWith('19') || digitsOnly.startsWith('17') || digitsOnly.startsWith('13') || digitsOnly.startsWith('14') || digitsOnly.startsWith('15') || digitsOnly.startsWith('16'))) {
+    return `880${digitsOnly}`;
+  }
+
+  // If already prefixed with 880
+  if (digitsOnly.startsWith('880') && digitsOnly.length >= 13) {
     return digitsOnly;
   }
+
+  // If already starts with 88
+  if (digitsOnly.startsWith('88') && digitsOnly.length >= 13) {
+    return digitsOnly;
+  }
+
+  // If empty or invalid length, fallback to default valid business WhatsApp
+  if (!digitsOnly || digitsOnly.length < 9) {
+    return DEFAULT_BUSINESS_WHATSAPP;
+  }
+
   return digitsOnly;
 }
 
@@ -34,7 +67,7 @@ export function createProductWhatsAppUrl(
   const targetPhone = cleanPhoneForWhatsApp(settings.whatsappNumber);
 
   const message = [
-    `👋 Hello *${settings.storeName}* (${settings.city})!`,
+    `👋 Hello *${settings.storeName || 'VORBOX'}* (${settings.city || 'Sundarganj'})!`,
     `I would like to order this item:`,
     ``,
     `🛍️ *Product:* ${product.name}`,
@@ -44,8 +77,8 @@ export function createProductWhatsAppUrl(
     `💵 *Item Total:* ৳${subtotal}`,
     `🚚 *Payment Method:* Cash on Delivery (COD)`,
     ``,
-    `📍 *Delivery City:* ${settings.city}`,
-    `Please confirm if this is available for delivery. My address & details are ready!`,
+    `📍 *Delivery City:* ${settings.city || 'Sundarganj'}`,
+    `Please confirm availability & dispatch schedule. Thank you!`,
   ].join('\n');
 
   return `https://wa.me/${targetPhone}?text=${encodeURIComponent(message)}`;
@@ -77,7 +110,7 @@ export function createCartWhatsAppUrl(
   const customerBlock = [
     `👤 *Customer Name:* ${customerInfo.name || 'Not specified'}`,
     `📱 *Phone:* ${customerInfo.phone || 'Not specified'}`,
-    `📍 *Area:* ${customerInfo.area || settings.city}`,
+    `📍 *Area:* ${customerInfo.area || settings.city || 'Sundarganj'}`,
     `🏠 *Address:* ${customerInfo.address || 'Cash on delivery address'}`,
     customerInfo.notes ? `📝 *Note:* ${customerInfo.notes}` : '',
   ]
@@ -85,14 +118,14 @@ export function createCartWhatsAppUrl(
     .join('\n');
 
   const message = [
-    `👋 Hello *${settings.storeName}*! I would like to place a Cash on Delivery order:`,
+    `👋 Hello *${settings.storeName || 'VORBOX'}*! I would like to place a Cash on Delivery order:`,
     ``,
     `📦 *ORDER ITEMS:*`,
     itemsList,
     ``,
     `━━━━━━━━━━━━━━━━━━`,
     `🏷️ *Subtotal:* ৳${subtotal}`,
-    `🚚 *Delivery Fee (${customerInfo.area || settings.city}):* ৳${deliveryFee}`,
+    `🚚 *Delivery Fee (${customerInfo.area || settings.city || 'Sundarganj'}):* ৳${deliveryFee}`,
     `💰 *Total to Pay on Delivery:* ৳${total}`,
     `━━━━━━━━━━━━━━━━━━`,
     ``,
@@ -118,7 +151,7 @@ export function createOrderReceiptWhatsAppUrl(
     .join('\n');
 
   const message = [
-    `👋 Hello *${settings.storeName}*!`,
+    `👋 Hello *${settings.storeName || 'VORBOX'}*!`,
     `I placed an order on the website:`,
     ``,
     `🔖 *Order ID:* ${order.orderNumber}`,
@@ -136,3 +169,4 @@ export function createOrderReceiptWhatsAppUrl(
 
   return `https://wa.me/${targetPhone}?text=${encodeURIComponent(message)}`;
 }
+

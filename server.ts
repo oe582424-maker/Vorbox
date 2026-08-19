@@ -1,6 +1,21 @@
-import { Product, StoreSettings, FeaturedDrop } from '../types';
+import express from 'express';
+import path from 'path';
+import fs from 'fs';
+import { createServer as createViteServer } from 'vite';
 
-export const DEFAULT_FEATURED_DROP: FeaturedDrop = {
+const app = express();
+const PORT = 3000;
+
+// Increase body limit for product base64 images
+app.use(express.json({ limit: '15mb' }));
+app.use(express.urlencoded({ extended: true, limit: '15mb' }));
+
+// Persistence Data File Path
+const DATA_DIR = path.join(process.cwd(), 'data');
+const DB_FILE = path.join(DATA_DIR, 'store-db.json');
+
+// Default initial baseline data
+const DEFAULT_FEATURED_DROP = {
   enabled: true,
   badgeText: 'Featured Drop',
   title: 'Heavyweight Boxy Tee',
@@ -11,7 +26,7 @@ export const DEFAULT_FEATURED_DROP: FeaturedDrop = {
   productId: 'vb-101',
 };
 
-export const DEFAULT_STORE_SETTINGS: StoreSettings = {
+const DEFAULT_STORE_SETTINGS = {
   storeName: 'VORBOX',
   tagline: 'Minimalist & Everyday Streetwear',
   city: 'Sundarganj Thana',
@@ -26,22 +41,7 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
   featuredDrop: DEFAULT_FEATURED_DROP,
 };
 
-export const SUNDARGANJ_DELIVERY_AREAS = [
-  'Sundarganj Sadar & Main Bazar Area',
-  'Bamandanga & Rail Station Mor',
-  'Mirganj & Dhubni Bazar',
-  'Belka & Tarapur Area',
-  'Haripur & Chandipur Area',
-  'Kapasia & Kanchibari Area',
-  'Shobhaganj & Sonaroy Mor',
-  'Dhaepara & Shanto Mor',
-  'Other Union / Area in Sundarganj Thana',
-];
-
-// Alias for backward compatibility
-export const RANGPUR_DELIVERY_AREAS = SUNDARGANJ_DELIVERY_AREAS;
-
-export const INITIAL_PRODUCTS: Product[] = [
+const INITIAL_PRODUCTS = [
   {
     id: 'vb-101',
     name: 'Heavyweight Boxy Drop-Shoulder Tee',
@@ -278,3 +278,222 @@ export const INITIAL_PRODUCTS: Product[] = [
     tag: 'Summer Deal',
   },
 ];
+
+interface StoreDbStructure {
+  products: typeof INITIAL_PRODUCTS;
+  settings: typeof DEFAULT_STORE_SETTINGS;
+  orders: any[];
+  lastUpdated: number;
+  version: number;
+}
+
+// Ensure database file exists
+function loadDatabase(): StoreDbStructure {
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    if (fs.existsSync(DB_FILE)) {
+      const raw = fs.readFileSync(DB_FILE, 'utf-8');
+      const data = JSON.parse(raw);
+      return {
+        products: Array.isArray(data.products) && data.products.length > 0 ? data.products : INITIAL_PRODUCTS,
+        settings: {
+          ...DEFAULT_STORE_SETTINGS,
+          ...(data.settings || {}),
+          featuredDrop: data.settings?.featuredDrop || DEFAULT_FEATURED_DROP,
+        },
+        orders: Array.isArray(data.orders) ? data.orders : [],
+        lastUpdated: data.lastUpdated || Date.now(),
+        version: (data.version || 1) + 1,
+      };
+    }
+  } catch (err) {
+    console.error('Error reading store database file:', err);
+  }
+
+  const initialDb: StoreDbStructure = {
+    products: INITIAL_PRODUCTS,
+    settings: DEFAULT_STORE_SETTINGS,
+    orders: [],
+    lastUpdated: Date.now(),
+    version: 1,
+  };
+  saveDatabase(initialDb);
+  return initialDb;
+}
+
+let inMemoryDb: StoreDbStructure = loadDatabase();
+
+function saveDatabase(db: StoreDbStructure) {
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    db.lastUpdated = Date.now();
+    db.version = (db.version || 0) + 1;
+    fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), 'utf-8');
+    inMemoryDb = db;
+  } catch (err) {
+    console.error('Error saving store database file:', err);
+  }
+}
+
+async function startServer() {
+  // ==================== API ROUTES ====================
+  
+  // Health check
+  app.get('/api/health', (req, res) => {
+    res.json({
+      status: 'ok',
+      storeName: inMemoryDb.settings.storeName,
+      productCount: inMemoryDb.products.length,
+      orderCount: inMemoryDb.orders.length,
+      version: inMemoryDb.version,
+      lastUpdated: inMemoryDb.lastUpdated,
+    });
+  });
+
+  // Get full store data (Products + Settings + Orders)
+  app.get('/api/store-data', (req, res) => {
+    res.json({
+      products: inMemoryDb.products,
+      settings: inMemoryDb.settings,
+      orders: inMemoryDb.orders,
+      version: inMemoryDb.version,
+      lastUpdated: inMemoryDb.lastUpdated,
+    });
+  });
+
+  // ==================== PRODUCTS ====================
+  
+  app.get('/api/products', (req, res) => {
+    res.json(inMemoryDb.products);
+  });
+
+  app.post('/api/products', (req, res) => {
+    const newProduct = req.body;
+    if (!newProduct || !newProduct.name || !newProduct.price) {
+      return res.status(400).json({ error: 'Product name and price are required' });
+    }
+    const productWithId = {
+      ...newProduct,
+      id: newProduct.id || `vb-${Date.now()}`,
+    };
+    const updatedProducts = [productWithId, ...inMemoryDb.products.filter(p => p.id !== productWithId.id)];
+    inMemoryDb.products = updatedProducts;
+    saveDatabase(inMemoryDb);
+    res.status(201).json({ success: true, product: productWithId, version: inMemoryDb.version });
+  });
+
+  app.put('/api/products/:id', (req, res) => {
+    const { id } = req.params;
+    const updated = req.body;
+    let found = false;
+    inMemoryDb.products = inMemoryDb.products.map((p) => {
+      if (p.id === id) {
+        found = true;
+        return { ...p, ...updated, id };
+      }
+      return p;
+    });
+    if (!found) {
+      inMemoryDb.products.unshift({ ...updated, id });
+    }
+    saveDatabase(inMemoryDb);
+    res.json({ success: true, product: updated, version: inMemoryDb.version });
+  });
+
+  app.delete('/api/products/:id', (req, res) => {
+    const { id } = req.params;
+    inMemoryDb.products = inMemoryDb.products.filter((p) => p.id !== id);
+    saveDatabase(inMemoryDb);
+    res.json({ success: true, id, version: inMemoryDb.version });
+  });
+
+  // ==================== STORE SETTINGS & FEATURED DROP ====================
+
+  app.get('/api/settings', (req, res) => {
+    res.json(inMemoryDb.settings);
+  });
+
+  app.put('/api/settings', (req, res) => {
+    const newSettings = req.body;
+    inMemoryDb.settings = {
+      ...inMemoryDb.settings,
+      ...newSettings,
+      featuredDrop: newSettings.featuredDrop || inMemoryDb.settings.featuredDrop || DEFAULT_FEATURED_DROP,
+    };
+    saveDatabase(inMemoryDb);
+    res.json({ success: true, settings: inMemoryDb.settings, version: inMemoryDb.version });
+  });
+
+  // ==================== ORDERS ====================
+
+  app.get('/api/orders', (req, res) => {
+    res.json(inMemoryDb.orders);
+  });
+
+  app.post('/api/orders', (req, res) => {
+    const newOrder = req.body;
+    if (!newOrder || !newOrder.orderNumber || !newOrder.items) {
+      return res.status(400).json({ error: 'Valid order data is required' });
+    }
+    inMemoryDb.orders = [newOrder, ...inMemoryDb.orders];
+    saveDatabase(inMemoryDb);
+    res.status(201).json({ success: true, order: newOrder, version: inMemoryDb.version });
+  });
+
+  app.patch('/api/orders/:id/status', (req, res) => {
+    const { id } = req.params;
+    const { status } = req.body;
+    inMemoryDb.orders = inMemoryDb.orders.map((o) =>
+      o.id === id ? { ...o, status } : o
+    );
+    saveDatabase(inMemoryDb);
+    res.json({ success: true, id, status, version: inMemoryDb.version });
+  });
+
+  app.delete('/api/orders/:id', (req, res) => {
+    const { id } = req.params;
+    inMemoryDb.orders = inMemoryDb.orders.filter((o) => o.id !== id);
+    saveDatabase(inMemoryDb);
+    res.json({ success: true, id, version: inMemoryDb.version });
+  });
+
+  // ==================== RESET ====================
+
+  app.post('/api/reset', (req, res) => {
+    inMemoryDb = {
+      products: INITIAL_PRODUCTS,
+      settings: DEFAULT_STORE_SETTINGS,
+      orders: [],
+      lastUpdated: Date.now(),
+      version: (inMemoryDb.version || 0) + 1,
+    };
+    saveDatabase(inMemoryDb);
+    res.json({ success: true, storeData: inMemoryDb });
+  });
+
+  // ==================== VITE & STATIC SERVING ====================
+
+  if (process.env.NODE_ENV !== 'production') {
+    const vite = await createViteServer({
+      server: { middlewareMode: true },
+      appType: 'spa',
+    });
+    app.use(vite.middlewares);
+  } else {
+    const distPath = path.join(process.cwd(), 'dist');
+    app.use(express.static(distPath));
+    app.get('*', (req, res) => {
+      res.sendFile(path.join(distPath, 'index.html'));
+    });
+  }
+
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Vorbox Store server running at http://0.0.0.0:${PORT}`);
+  });
+}
+
+startServer();

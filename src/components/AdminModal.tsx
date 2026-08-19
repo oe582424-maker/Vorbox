@@ -438,12 +438,18 @@ export const AdminModal: React.FC<AdminModalProps> = ({
               {isAuthenticated ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="text-base sm:text-lg font-black font-mono tracking-tight">{settings.storeName} Merchant Portal</h2>
                 {isAuthenticated && (
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                    Authorized
-                  </span>
+                  <>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                      Authorized
+                    </span>
+                    <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono text-emerald-300 bg-neutral-900 border border-emerald-500/40">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      <span>Live Multi-Device Sync</span>
+                    </span>
+                  </>
                 )}
               </div>
               <p className="text-[11px] text-neutral-400">
@@ -1748,17 +1754,17 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                 <form onSubmit={handleSaveSettings} className="space-y-5">
                   {/* WhatsApp Ordering Configuration */}
                   <div className="p-4 bg-emerald-50/60 rounded-2xl border border-emerald-200 space-y-3">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center">
+                        <div className="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0">
                           <MessageCircle className="w-4 h-4" />
                         </div>
                         <div>
                           <h4 className="text-xs sm:text-sm font-bold text-emerald-950">
-                            WhatsApp Ordering & Direct Chat Number
+                            WhatsApp Ordering & Direct Chat Configuration
                           </h4>
                           <p className="text-[11px] text-emerald-700">
-                            All 1-click WhatsApp order links on cards & cart will direct here (Free tier)
+                            All 1-click WhatsApp order links, cards, & Floating Chat will route to this number
                           </p>
                         </div>
                       </div>
@@ -1767,11 +1773,68 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                         href={testWhatsAppUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold shadow-xs transition-colors"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold shadow-xs transition-colors shrink-0"
                       >
-                        <span>Test WhatsApp</span>
+                        <MessageCircle className="w-3.5 h-3.5" />
+                        <span>Test Live Link</span>
                         <ExternalLink className="w-3 h-3" />
                       </a>
+                    </div>
+
+                    {/* Quick Preset Selector Buttons */}
+                    <div className="pt-2 border-t border-emerald-200/80">
+                      <label className="block text-[11px] font-bold text-emerald-950 mb-1.5">
+                        Quick Preset Switcher:
+                      </label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFormSettings({
+                              ...formSettings,
+                              whatsappNumber: '8801866068916',
+                              whatsappDisplayNumber: '+880 1866-068916',
+                            });
+                          }}
+                          className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between ${
+                            formSettings.whatsappNumber === '8801866068916'
+                              ? 'border-emerald-600 bg-emerald-600 text-white shadow-xs font-bold'
+                              : 'border-emerald-300 bg-white hover:bg-emerald-100 text-emerald-950'
+                          }`}
+                        >
+                          <div>
+                            <span className="text-xs block font-bold">Primary Number</span>
+                            <span className="text-[11px] font-mono opacity-90">+880 1866-068916</span>
+                          </div>
+                          {formSettings.whatsappNumber === '8801866068916' && (
+                            <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded font-mono">Active</span>
+                          )}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFormSettings({
+                              ...formSettings,
+                              whatsappNumber: '8801982135000',
+                              whatsappDisplayNumber: '+880 1982-135000',
+                            });
+                          }}
+                          className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between ${
+                            formSettings.whatsappNumber === '8801982135000'
+                              ? 'border-emerald-600 bg-emerald-600 text-white shadow-xs font-bold'
+                              : 'border-emerald-300 bg-white hover:bg-emerald-100 text-emerald-950'
+                          }`}
+                        >
+                          <div>
+                            <span className="text-xs block font-bold">Secondary Number</span>
+                            <span className="text-[11px] font-mono opacity-90">+880 1982-135000</span>
+                          </div>
+                          {formSettings.whatsappNumber === '8801982135000' && (
+                            <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded font-mono">Active</span>
+                          )}
+                        </button>
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-1">
@@ -1784,11 +1847,11 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                           required
                           value={formSettings.whatsappNumber}
                           onChange={(e) => setFormSettings({ ...formSettings, whatsappNumber: e.target.value })}
-                          placeholder="8801712345678"
-                          className="w-full p-2.5 bg-white border border-emerald-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-emerald-600 font-mono"
+                          placeholder="8801866068916"
+                          className="w-full p-2.5 bg-white border border-emerald-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-emerald-600 font-mono text-xs"
                         />
-                        <span className="text-[10px] text-emerald-800 mt-1 block">
-                          Format: 88017XXXXXXXX (without '+' or dashes for wa.me links)
+                        <span className="text-[10px] text-emerald-800 mt-1 block font-mono">
+                          Live wa.me route: https://wa.me/{cleanPhoneForWhatsApp(formSettings.whatsappNumber)}
                         </span>
                       </div>
 
@@ -1801,11 +1864,11 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                           required
                           value={formSettings.whatsappDisplayNumber}
                           onChange={(e) => setFormSettings({ ...formSettings, whatsappDisplayNumber: e.target.value })}
-                          placeholder="+880 1712-345678"
-                          className="w-full p-2.5 bg-white border border-emerald-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-emerald-600 font-mono"
+                          placeholder="+880 1866-068916"
+                          className="w-full p-2.5 bg-white border border-emerald-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-emerald-600 font-mono text-xs"
                         />
                         <span className="text-[10px] text-emerald-800 mt-1 block">
-                          Appears in header, footer and floating contact buttons
+                          Shown on site header, footer, & contact buttons
                         </span>
                       </div>
                     </div>

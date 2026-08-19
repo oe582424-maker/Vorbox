@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { X, ShieldCheck, MapPin, Phone, User, FileText, Truck, ArrowRight, MessageCircle } from 'lucide-react';
+import { X, ShieldCheck, MapPin, Phone, User, FileText, Truck, ArrowRight, MessageCircle, Globe } from 'lucide-react';
 import { CartItem, Order, StoreSettings } from '../types';
-import { SUNDARGANJ_DELIVERY_AREAS } from '../data/defaultData';
 import { formatBDT, generateOrderNumber, createCartWhatsAppUrl } from '../utils/helpers';
 
 interface CheckoutModalProps {
@@ -11,6 +10,12 @@ interface CheckoutModalProps {
   settings: StoreSettings;
   onOrderSuccess: (order: Order) => void;
 }
+
+const REGION_OPTIONS = [
+  { id: 'local', name: 'Inside Local Area / City (Sundarganj & Nearby)', isOutside: false },
+  { id: 'nationwide', name: 'Nationwide Delivery (All Districts & Thanas in Bangladesh)', isOutside: true },
+  { id: 'custom', name: 'Other / Custom Area', isOutside: true },
+];
 
 export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   isOpen,
@@ -23,7 +28,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
-  const [deliveryArea, setDeliveryArea] = useState(SUNDARGANJ_DELIVERY_AREAS[0]);
+  const [selectedRegionType, setSelectedRegionType] = useState<'local' | 'nationwide' | 'custom'>('local');
+  const [districtCity, setDistrictCity] = useState(settings.city || 'Sundarganj');
+  const [deliveryArea, setDeliveryArea] = useState('Sundarganj Main Town');
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [deliveryNotes, setDeliveryNotes] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
@@ -31,7 +38,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   const subtotal = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
   const isFreeDelivery = subtotal >= settings.freeDeliveryThreshold;
-  const isOutsideCity = deliveryArea.includes('Other Area');
+  const isOutsideCity = selectedRegionType !== 'local';
   const deliveryFee = isFreeDelivery
     ? 0
     : isOutsideCity
@@ -50,16 +57,18 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
     const cleanPhone = customerPhone.replace(/[^0-9]/g, '');
     if (cleanPhone.length < 10 || cleanPhone.length > 14) {
-      setErrorMsg('Please enter a valid active phone number (e.g. 017xxxxxxxx)');
+      setErrorMsg('Please enter a valid active phone number (e.g. 018xxxxxxxx or 019xxxxxxxx)');
       return;
     }
 
     if (!deliveryAddress.trim()) {
-      setErrorMsg(`Please enter your village/road/house or landmark address in ${settings.city}`);
+      setErrorMsg('Please enter your detailed house, village, road, or area address');
       return;
     }
 
     setIsSubmitting(true);
+
+    const fullAreaString = `${districtCity ? districtCity + ' - ' : ''}${deliveryArea || 'Home Delivery'}`;
 
     const newOrder: Order = {
       id: `ord_${Date.now()}`,
@@ -75,7 +84,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       })),
       customerName: customerName.trim(),
       customerPhone: customerPhone.trim(),
-      deliveryArea,
+      deliveryArea: fullAreaString,
       deliveryAddress: deliveryAddress.trim(),
       deliveryNotes: deliveryNotes.trim() || undefined,
       subtotal,
@@ -98,7 +107,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     {
       name: customerName,
       phone: customerPhone,
-      area: deliveryArea,
+      area: `${districtCity ? districtCity + ' - ' : ''}${deliveryArea || 'Home Delivery'}`,
       address: deliveryAddress,
       notes: deliveryNotes,
     },
@@ -115,11 +124,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       >
         {/* Header */}
         <div className="p-4 sm:p-5 border-b border-neutral-200 flex items-center justify-between bg-neutral-900 text-white">
-          <div className="flex items-center gap-2">
-            <ShieldCheck className="w-5 h-5 text-emerald-400" />
+          <div className="flex items-center gap-2.5">
+            <ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0" />
             <div>
               <h2 className="text-base sm:text-lg font-black font-mono">Cash on Delivery Checkout</h2>
-              <p className="text-[11px] text-neutral-300">Serving {settings.city} • Pay when package is delivered</p>
+              <p className="text-[11px] text-neutral-300">100% Cash on Delivery Available for All Regions in Bangladesh</p>
             </div>
           </div>
 
@@ -127,7 +136,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             id="close-checkout-modal-btn"
             type="button"
             onClick={onClose}
-            className="p-1.5 text-neutral-400 hover:text-white rounded-full hover:bg-neutral-800 transition-colors"
+            className="p-1.5 text-neutral-400 hover:text-white rounded-full hover:bg-neutral-800 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -136,7 +145,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         {/* Content Form */}
         <form onSubmit={handleSubmit} className="p-4 sm:p-6 overflow-y-auto space-y-5">
           {errorMsg && (
-            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold rounded-xl">
+            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold rounded-xl animate-fadeIn">
               {errorMsg}
             </div>
           )}
@@ -178,41 +187,114 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     required
                     value={customerPhone}
                     onChange={(e) => setCustomerPhone(e.target.value)}
-                    placeholder="e.g. 01712-345678"
-                    className="w-full pl-9 pr-3 py-2 text-sm bg-neutral-50 border border-neutral-300 rounded-lg focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-neutral-900"
+                    placeholder="e.g. 018XXXXXXXX or 019XXXXXXXX"
+                    className="w-full pl-9 pr-3 py-2 text-sm bg-neutral-50 border border-neutral-300 rounded-lg focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-neutral-900 font-mono"
                   />
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Delivery Location in Sundarganj Thana */}
+          {/* Flexible Delivery Location Selection */}
           <div className="space-y-3 pt-2 border-t border-neutral-100">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-500">
-              2. Delivery Address in {settings.city}
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-500 flex items-center gap-1.5">
+                <MapPin className="w-3.5 h-3.5 text-neutral-600" />
+                <span>2. Delivery Region & Address</span>
+              </h3>
+              <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                All Regions Eligible for COD
+              </span>
+            </div>
 
-            <div>
-              <label className="block text-xs font-medium text-neutral-700 mb-1">
-                Select Area / Zone <span className="text-rose-500">*</span>
-              </label>
-              <select
-                id="checkout-area-select"
-                value={deliveryArea}
-                onChange={(e) => setDeliveryArea(e.target.value)}
-                className="w-full px-3 py-2 text-sm bg-neutral-50 border border-neutral-300 rounded-lg focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-neutral-900"
+            {/* Region Type Buttons */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedRegionType('local');
+                  setDistrictCity(settings.city || 'Sundarganj');
+                  setDeliveryArea('Sundarganj Main Town');
+                }}
+                className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                  selectedRegionType === 'local'
+                    ? 'border-neutral-900 bg-neutral-900 text-white shadow-xs'
+                    : 'border-neutral-200 bg-neutral-50 hover:bg-neutral-100 text-neutral-800'
+                }`}
               >
-                {SUNDARGANJ_DELIVERY_AREAS.map((area) => (
-                  <option key={area} value={area}>
-                    {area}
-                  </option>
-                ))}
-              </select>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold">Inside Local City / Area</span>
+                  <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
+                    selectedRegionType === 'local' ? 'bg-neutral-800 text-emerald-300' : 'bg-neutral-200 text-neutral-700'
+                  }`}>
+                    ৳{settings.insideCityDeliveryFee} Delivery
+                  </span>
+                </div>
+                <p className={`text-[11px] mt-0.5 ${selectedRegionType === 'local' ? 'text-neutral-300' : 'text-neutral-500'}`}>
+                  {settings.city} & nearby local areas
+                </p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedRegionType('nationwide');
+                  if (districtCity === settings.city) setDistrictCity('Dhaka');
+                }}
+                className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                  selectedRegionType === 'nationwide'
+                    ? 'border-neutral-900 bg-neutral-900 text-white shadow-xs'
+                    : 'border-neutral-200 bg-neutral-50 hover:bg-neutral-100 text-neutral-800'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold">Nationwide Delivery</span>
+                  <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
+                    selectedRegionType === 'nationwide' ? 'bg-neutral-800 text-emerald-300' : 'bg-neutral-200 text-neutral-700'
+                  }`}>
+                    ৳{settings.outsideCityDeliveryFee} Delivery
+                  </span>
+                </div>
+                <p className={`text-[11px] mt-0.5 ${selectedRegionType === 'nationwide' ? 'text-neutral-300' : 'text-neutral-500'}`}>
+                  Any Thana / District in Bangladesh
+                </p>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-neutral-700 mb-1">
+                  District / City / Thana <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  id="checkout-district-input"
+                  type="text"
+                  required
+                  value={districtCity}
+                  onChange={(e) => setDistrictCity(e.target.value)}
+                  placeholder="e.g. Sundarganj, Gaibandha, Dhaka, Chattogram..."
+                  className="w-full px-3 py-2 text-sm bg-neutral-50 border border-neutral-300 rounded-lg focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-neutral-900"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-neutral-700 mb-1">
+                  Area / Thana / Union (Optional)
+                </label>
+                <input
+                  id="checkout-area-input"
+                  type="text"
+                  value={deliveryArea}
+                  onChange={(e) => setDeliveryArea(e.target.value)}
+                  placeholder="e.g. Main Bazar, Mirpur, Dhanmondi, Union..."
+                  className="w-full px-3 py-2 text-sm bg-neutral-50 border border-neutral-300 rounded-lg focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-neutral-900"
+                />
+              </div>
             </div>
 
             <div>
               <label className="block text-xs font-medium text-neutral-700 mb-1">
-                Full Village / Road / House / Landmark Address <span className="text-rose-500">*</span>
+                Full Street / Village / House / Landmark Address <span className="text-rose-500">*</span>
               </label>
               <div className="relative">
                 <MapPin className="w-4 h-4 text-neutral-400 absolute left-3 top-3" />
@@ -222,7 +304,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   rows={2}
                   value={deliveryAddress}
                   onChange={(e) => setDeliveryAddress(e.target.value)}
-                  placeholder="Village / Union, Road or Mor name, nearby School, College or Market landmark..."
+                  placeholder="Road name, House #, Holding #, nearby Market, School or Landmark..."
                   className="w-full pl-9 pr-3 py-2 text-sm bg-neutral-50 border border-neutral-300 rounded-lg focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-neutral-900 resize-none"
                 />
               </div>
@@ -239,7 +321,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   type="text"
                   value={deliveryNotes}
                   onChange={(e) => setDeliveryNotes(e.target.value)}
-                  placeholder="e.g. Call before coming, urgent delivery within 12h"
+                  placeholder="e.g. Please call before arriving, delivery after 2 PM"
                   className="w-full pl-9 pr-3 py-2 text-sm bg-neutral-50 border border-neutral-300 rounded-lg focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-neutral-900"
                 />
               </div>
@@ -260,7 +342,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 <div>
                   <h4 className="text-xs sm:text-sm font-bold text-neutral-900">Cash on Delivery (COD)</h4>
                   <p className="text-[11px] text-neutral-500">
-                    Hand cash to our {settings.city} delivery rider once you inspect your package.
+                    Hand cash directly to the delivery rider once you receive and inspect your package.
                   </p>
                 </div>
               </div>
@@ -280,7 +362,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             <div className="flex justify-between text-neutral-600">
               <span className="flex items-center gap-1">
                 <Truck className="w-3.5 h-3.5 text-neutral-500" />
-                <span>Delivery ({deliveryArea.split('(')[0].trim()})</span>
+                <span>Delivery ({selectedRegionType === 'local' ? `Local Area` : 'Nationwide'})</span>
               </span>
               <span className="font-mono font-semibold text-neutral-900">
                 {deliveryFee === 0 ? 'FREE' : formatBDT(deliveryFee)}
@@ -288,7 +370,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             </div>
 
             <div className="flex justify-between text-sm font-black text-neutral-950 pt-2 border-t border-neutral-200">
-              <span>Total Payable Amount</span>
+              <span>Total Payable on Delivery</span>
               <span className="font-mono text-base text-neutral-950">{formatBDT(total)}</span>
             </div>
           </div>
@@ -328,3 +410,4 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     </div>
   );
 };
+

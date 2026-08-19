@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Product, CartItem, Order, StoreSettings } from './types';
 import { INITIAL_PRODUCTS, DEFAULT_STORE_SETTINGS } from './data/defaultData';
+import { api } from './services/api';
 import { TopNoticeBar } from './components/TopNoticeBar';
 import { Navbar } from './components/Navbar';
 import { HeroSection } from './components/HeroSection';
@@ -26,7 +27,7 @@ const CATEGORIES = [
 ];
 
 export default function App() {
-  // 1. Settings State
+  // 1. Settings State (Loaded with localStorage fallback)
   const [settings, setSettings] = useState<StoreSettings>(() => {
     const saved = localStorage.getItem('vorbox_settings');
     if (saved) {
@@ -96,8 +97,9 @@ export default function App() {
   const [isAdminOpen, setIsAdminOpen] = useState(false);
 
   const productSectionRef = useRef<HTMLDivElement>(null);
+  const isSyncingRef = useRef(false);
 
-  // Sync to LocalStorage
+  // Sync to LocalStorage as instant local cache
   useEffect(() => {
     localStorage.setItem('vorbox_settings', JSON.stringify(settings));
   }, [settings]);
@@ -113,6 +115,59 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('vorbox_orders', JSON.stringify(orders));
   }, [orders]);
+
+  // Real-time multi-device synchronization engine
+  const fetchLatestStoreData = useCallback(async () => {
+    if (isSyncingRef.current) return;
+    try {
+      isSyncingRef.current = true;
+      const data = await api.getStoreData();
+      if (data) {
+        if (Array.isArray(data.products) && data.products.length > 0) {
+          setProducts(data.products);
+        }
+        if (data.settings) {
+          setSettings((prev) => ({
+            ...prev,
+            ...data.settings,
+            adminPassword: data.settings.adminPassword || prev.adminPassword,
+          }));
+        }
+        if (Array.isArray(data.orders)) {
+          setOrders(data.orders);
+        }
+      }
+    } catch (err) {
+      console.warn('Sync poll error:', err);
+    } finally {
+      isSyncingRef.current = false;
+    }
+  }, []);
+
+  // Sync on initial mount + live background polling across all devices
+  useEffect(() => {
+    fetchLatestStoreData();
+
+    // Poll every 5 seconds for instant multi-device synchronization
+    const interval = setInterval(() => {
+      fetchLatestStoreData();
+    }, 5000);
+
+    // Also sync on window focus or tab visibility change
+    const onVisibilityOrFocus = () => {
+      if (document.visibilityState === 'visible') {
+        fetchLatestStoreData();
+      }
+    };
+    window.addEventListener('focus', onVisibilityOrFocus);
+    document.addEventListener('visibilitychange', onVisibilityOrFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', onVisibilityOrFocus);
+      document.removeEventListener('visibilitychange', onVisibilityOrFocus);
+    };
+  }, [fetchLatestStoreData]);
 
   // Cart operations
   const handleAddToCart = (
@@ -177,41 +232,53 @@ export default function App() {
   };
 
   // Order submission
-  const handleOrderSuccess = (order: Order) => {
+  const handleOrderSuccess = async (order: Order) => {
     setOrders((prev) => [order, ...prev]);
     setCart([]);
     setIsCheckoutOpen(false);
     setIsCartOpen(false);
     setConfirmedOrder(order);
+    // Persist to backend
+    await api.createOrder(order);
   };
 
   // Admin order status update
-  const handleUpdateOrderStatus = (orderId: string, status: Order['status']) => {
+  const handleUpdateOrderStatus = async (orderId: string, status: Order['status']) => {
     setOrders((prev) =>
       prev.map((o) => (o.id === orderId ? { ...o, status } : o))
     );
+    await api.updateOrderStatus(orderId, status);
   };
 
-  const handleDeleteOrder = (orderId: string) => {
+  const handleDeleteOrder = async (orderId: string) => {
     setOrders((prev) => prev.filter((o) => o.id !== orderId));
+    await api.deleteOrder(orderId);
   };
 
   // Admin product operations
-  const handleAddProduct = (newProd: Product) => {
+  const handleAddProduct = async (newProd: Product) => {
     setProducts((prev) => [newProd, ...prev]);
+    await api.createProduct(newProd);
   };
 
-  const handleUpdateProduct = (updatedProd: Product) => {
+  const handleUpdateProduct = async (updatedProd: Product) => {
     setProducts((prev) =>
       prev.map((p) => (p.id === updatedProd.id ? updatedProd : p))
     );
+    await api.updateProduct(updatedProd);
   };
 
-  const handleDeleteProduct = (productId: string) => {
+  const handleDeleteProduct = async (productId: string) => {
     setProducts((prev) => prev.filter((p) => p.id !== productId));
+    await api.deleteProduct(productId);
   };
 
-  const handleResetDemoData = () => {
+  const handleUpdateSettings = async (newSettings: StoreSettings) => {
+    setSettings(newSettings);
+    await api.updateSettings(newSettings);
+  };
+
+  const handleResetDemoData = async () => {
     setProducts(INITIAL_PRODUCTS);
     setSettings(DEFAULT_STORE_SETTINGS);
     setOrders([]);
@@ -220,6 +287,7 @@ export default function App() {
     localStorage.removeItem('vorbox_settings');
     localStorage.removeItem('vorbox_orders');
     localStorage.removeItem('vorbox_cart');
+    await api.resetStoreData();
   };
 
   // Filtered and Sorted products list
@@ -248,7 +316,7 @@ export default function App() {
   const totalCartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
-    <div id="vorbox-app-root" className="min-h-screen w-full max-w-full overflow-x-hidden bg-neutral-50 text-neutral-900 font-sans flex flex-col selection:bg-neutral-900 selection:text-white relative">
+    <div id="vorbox-app-root" className="min-h-screen min-h-[100dvh] w-full bg-neutral-50 text-neutral-900 font-sans flex flex-col selection:bg-neutral-900 selection:text-white relative">
       {/* 1. Top Notice Announcement */}
       <TopNoticeBar settings={settings} />
 
@@ -433,7 +501,7 @@ export default function App() {
         onUpdateProduct={handleUpdateProduct}
         onDeleteProduct={handleDeleteProduct}
         settings={settings}
-        onUpdateSettings={(newSettings) => setSettings(newSettings)}
+        onUpdateSettings={handleUpdateSettings}
         onResetDemoData={handleResetDemoData}
       />
     </div>
