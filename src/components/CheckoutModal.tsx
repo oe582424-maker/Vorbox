@@ -28,9 +28,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
-  const [selectedRegionType, setSelectedRegionType] = useState<'local' | 'nationwide' | 'custom'>('local');
-  const [districtCity, setDistrictCity] = useState(settings.city || 'Sundarganj');
-  const [deliveryArea, setDeliveryArea] = useState('Sundarganj Main Town');
+  const [selectedRegionType, setSelectedRegionType] = useState<'local' | 'nationwide'>('local');
+  const [districtCity, setDistrictCity] = useState('');
+  const [deliveryArea, setDeliveryArea] = useState('');
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [deliveryNotes, setDeliveryNotes] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
@@ -45,6 +45,20 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     ? settings.outsideCityDeliveryFee
     : settings.insideCityDeliveryFee;
   const total = subtotal + deliveryFee;
+
+  const whatsappCheckoutUrl = createCartWhatsAppUrl(
+    cart,
+    {
+      name: customerName,
+      phone: customerPhone,
+      district: districtCity,
+      area: deliveryArea,
+      address: deliveryAddress,
+      notes: deliveryNotes,
+    },
+    deliveryFee,
+    settings
+  );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,6 +75,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       return;
     }
 
+    if (!districtCity.trim()) {
+      setErrorMsg('Please enter your District / City / Thana');
+      return;
+    }
+
     if (!deliveryAddress.trim()) {
       setErrorMsg('Please enter your detailed house, village, road, or area address');
       return;
@@ -68,7 +87,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
     setIsSubmitting(true);
 
-    const fullAreaString = `${districtCity ? districtCity + ' - ' : ''}${deliveryArea || 'Home Delivery'}`;
+    const fullAreaString = [deliveryArea.trim(), districtCity.trim()].filter(Boolean).join(', ') || 'Home Delivery';
 
     const newOrder: Order = {
       id: `ord_${Date.now()}`,
@@ -91,29 +110,23 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       deliveryFee,
       totalAmount: total,
       paymentMethod: 'Cash on Delivery (COD)',
-      orderChannel: 'Website COD',
+      orderChannel: 'WhatsApp & Website COD',
       status: 'Pending',
       createdAt: new Date().toISOString(),
     };
+
+    // Open WhatsApp directly with the compiled order details
+    try {
+      window.open(whatsappCheckoutUrl, '_blank');
+    } catch {
+      // If popup blocker occurs, link remains accessible via direct button
+    }
 
     setTimeout(() => {
       setIsSubmitting(false);
       onOrderSuccess(newOrder);
     }, 400);
   };
-
-  const whatsappCheckoutUrl = createCartWhatsAppUrl(
-    cart,
-    {
-      name: customerName,
-      phone: customerPhone,
-      area: `${districtCity ? districtCity + ' - ' : ''}${deliveryArea || 'Home Delivery'}`,
-      address: deliveryAddress,
-      notes: deliveryNotes,
-    },
-    deliveryFee,
-    settings
-  );
 
   return (
     <div id="checkout-modal-backdrop" className="fixed inset-0 z-50 bg-neutral-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto" onClick={onClose}>
@@ -211,11 +224,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <button
                 type="button"
-                onClick={() => {
-                  setSelectedRegionType('local');
-                  setDistrictCity(settings.city || 'Sundarganj');
-                  setDeliveryArea('Sundarganj Main Town');
-                }}
+                onClick={() => setSelectedRegionType('local')}
                 className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
                   selectedRegionType === 'local'
                     ? 'border-neutral-900 bg-neutral-900 text-white shadow-xs'
@@ -231,16 +240,13 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   </span>
                 </div>
                 <p className={`text-[11px] mt-0.5 ${selectedRegionType === 'local' ? 'text-neutral-300' : 'text-neutral-500'}`}>
-                  {settings.city} & nearby local areas
+                  Local city & surrounding area
                 </p>
               </button>
 
               <button
                 type="button"
-                onClick={() => {
-                  setSelectedRegionType('nationwide');
-                  if (districtCity === settings.city) setDistrictCity('Dhaka');
-                }}
+                onClick={() => setSelectedRegionType('nationwide')}
                 className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
                   selectedRegionType === 'nationwide'
                     ? 'border-neutral-900 bg-neutral-900 text-white shadow-xs'
@@ -248,7 +254,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold">Nationwide Delivery</span>
+                  <span className="text-xs font-bold">Nationwide Courier</span>
                   <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
                     selectedRegionType === 'nationwide' ? 'bg-neutral-800 text-emerald-300' : 'bg-neutral-200 text-neutral-700'
                   }`}>
@@ -256,7 +262,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   </span>
                 </div>
                 <p className={`text-[11px] mt-0.5 ${selectedRegionType === 'nationwide' ? 'text-neutral-300' : 'text-neutral-500'}`}>
-                  Any Thana / District in Bangladesh
+                  All Districts & Thanas in Bangladesh
                 </p>
               </button>
             </div>
@@ -272,21 +278,21 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   required
                   value={districtCity}
                   onChange={(e) => setDistrictCity(e.target.value)}
-                  placeholder="e.g. Sundarganj, Gaibandha, Dhaka, Chattogram..."
+                  placeholder="e.g. Dhaka, Chittagong, Sylhet..."
                   className="w-full px-3 py-2 text-sm bg-neutral-50 border border-neutral-300 rounded-lg focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-neutral-900"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-medium text-neutral-700 mb-1">
-                  Area / Thana / Union (Optional)
+                  Area / Thana / Union
                 </label>
                 <input
                   id="checkout-area-input"
                   type="text"
                   value={deliveryArea}
                   onChange={(e) => setDeliveryArea(e.target.value)}
-                  placeholder="e.g. Main Bazar, Mirpur, Dhanmondi, Union..."
+                  placeholder="e.g. Gulshan, Dhanmondi, Sadar..."
                   className="w-full px-3 py-2 text-sm bg-neutral-50 border border-neutral-300 rounded-lg focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-neutral-900"
                 />
               </div>
@@ -381,14 +387,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               id="confirm-order-submit-btn"
               type="submit"
               disabled={isSubmitting}
-              className="w-full py-3.5 px-4 bg-neutral-950 hover:bg-neutral-800 disabled:bg-neutral-400 text-white font-bold text-sm rounded-xl transition-all active:scale-98 shadow-md flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full py-3.5 px-4 bg-emerald-600 hover:bg-emerald-500 disabled:bg-neutral-400 text-white font-bold text-sm rounded-xl transition-all active:scale-98 shadow-md flex items-center justify-center gap-2 cursor-pointer"
             >
               {isSubmitting ? (
-                <span>Confirming your order...</span>
+                <span>Confirming and opening WhatsApp...</span>
               ) : (
                 <>
-                  <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                  <span>Confirm Order (Pay {formatBDT(total)} on Delivery)</span>
+                  <MessageCircle className="w-4 h-4" />
+                  <span>Confirm Order via WhatsApp (Pay {formatBDT(total)} COD)</span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
@@ -399,9 +405,39 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               href={whatsappCheckoutUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm rounded-xl transition-all active:scale-98 shadow-sm flex items-center justify-center gap-2 text-center"
+              onClick={() => {
+                if (customerName.trim() && deliveryAddress.trim() && districtCity.trim()) {
+                  const fullAreaString = [deliveryArea.trim(), districtCity.trim()].filter(Boolean).join(', ') || 'Home Delivery';
+                  onOrderSuccess({
+                    id: `ord_${Date.now()}`,
+                    orderNumber: generateOrderNumber(),
+                    items: cart.map((i) => ({
+                      productId: i.productId,
+                      productName: i.product.name,
+                      size: i.selectedSize,
+                      color: i.selectedColor.name,
+                      price: i.product.price,
+                      quantity: i.quantity,
+                      image: i.product.images[0],
+                    })),
+                    customerName: customerName.trim(),
+                    customerPhone: customerPhone.trim(),
+                    deliveryArea: fullAreaString,
+                    deliveryAddress: deliveryAddress.trim(),
+                    deliveryNotes: deliveryNotes.trim() || undefined,
+                    subtotal,
+                    deliveryFee,
+                    totalAmount: total,
+                    paymentMethod: 'Cash on Delivery (COD)',
+                    orderChannel: 'WhatsApp Direct',
+                    status: 'Pending',
+                    createdAt: new Date().toISOString(),
+                  });
+                }
+              }}
+              className="w-full py-2.5 px-4 bg-neutral-900 hover:bg-neutral-800 text-white font-bold text-xs sm:text-sm rounded-xl transition-all active:scale-98 shadow-xs flex items-center justify-center gap-2 text-center"
             >
-              <MessageCircle className="w-4 h-4" />
+              <ShieldCheck className="w-4 h-4 text-emerald-400" />
               <span>Or Place Directly via WhatsApp</span>
             </a>
           </div>

@@ -89,6 +89,7 @@ export function createCartWhatsAppUrl(
   customerInfo: {
     name?: string;
     phone?: string;
+    district?: string;
     area?: string;
     address?: string;
     notes?: string;
@@ -107,32 +108,35 @@ export function createCartWhatsAppUrl(
     )
     .join('\n\n');
 
+  const locationText = [customerInfo.area, customerInfo.district].filter(Boolean).join(', ');
+
   const customerBlock = [
-    `👤 *Customer Name:* ${customerInfo.name || 'Not specified'}`,
-    `📱 *Phone:* ${customerInfo.phone || 'Not specified'}`,
-    `📍 *Area:* ${customerInfo.area || settings.city || 'Sundarganj'}`,
-    `🏠 *Address:* ${customerInfo.address || 'Cash on delivery address'}`,
-    customerInfo.notes ? `📝 *Note:* ${customerInfo.notes}` : '',
+    `👤 *Customer Name:* ${customerInfo.name || 'Not provided'}`,
+    `📱 *Phone Number:* ${customerInfo.phone || 'Not provided'}`,
+    locationText ? `📍 *City / Area:* ${locationText}` : '',
+    `🏠 *Delivery Address:* ${customerInfo.address || 'Cash on delivery address'}`,
+    customerInfo.notes ? `📝 *Special Note:* ${customerInfo.notes}` : '',
   ]
     .filter(Boolean)
     .join('\n');
 
   const message = [
-    `👋 Hello *${settings.storeName || 'VORBOX'}*! I would like to place a Cash on Delivery order:`,
+    `👋 Hello *${settings.storeName || 'VORBOX'}*!`,
+    `I would like to place a Cash on Delivery order:`,
     ``,
-    `📦 *ORDER ITEMS:*`,
+    `📦 *ORDERED ITEMS:*`,
     itemsList,
     ``,
     `━━━━━━━━━━━━━━━━━━`,
-    `🏷️ *Subtotal:* ৳${subtotal}`,
-    `🚚 *Delivery Fee (${customerInfo.area || settings.city || 'Sundarganj'}):* ৳${deliveryFee}`,
-    `💰 *Total to Pay on Delivery:* ৳${total}`,
+    `🏷️ *Items Subtotal:* ৳${subtotal}`,
+    `🚚 *Delivery Fee:* ৳${deliveryFee}`,
+    `💰 *Grand Total (Pay on Delivery):* ৳${total}`,
     `━━━━━━━━━━━━━━━━━━`,
     ``,
-    `📍 *CUSTOMER & DELIVERY DETAILS:*`,
+    `📍 *DELIVERY & CUSTOMER DETAILS:*`,
     customerBlock,
     ``,
-    `Please confirm my order for dispatch!`,
+    `Please confirm my order and share dispatch details. Thank you!`,
   ].join('\n');
 
   return `https://wa.me/${targetPhone}?text=${encodeURIComponent(message)}`;

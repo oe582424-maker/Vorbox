@@ -226,35 +226,23 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
             </div>
 
             {/* Main Action Buttons */}
-            <div className="space-y-2 pt-1">
-              {/* Cash on Delivery Button */}
+            <div className="pt-1">
+              {/* Single Green WhatsApp Button to proceed to Cash on Delivery / WhatsApp Checkout */}
               <button
-                id="drawer-checkout-cod-btn"
+                id="drawer-whatsapp-checkout-btn"
                 type="button"
                 onClick={onProceedToCheckout}
-                className="w-full py-3 px-4 bg-neutral-950 hover:bg-neutral-800 text-white font-bold text-xs sm:text-sm rounded-xl transition-all active:scale-98 shadow-sm flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                <span>Place Order with Cash on Delivery</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-
-              {/* Order via WhatsApp */}
-              <a
-                id="drawer-whatsapp-btn"
-                href={directWhatsAppUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm rounded-xl transition-all active:scale-98 shadow-sm flex items-center justify-center gap-2 text-center"
-                title="Send Cart directly to WhatsApp"
+                className="w-full py-3.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm rounded-xl transition-all active:scale-98 shadow-md flex items-center justify-center gap-2 text-center cursor-pointer"
+                title="Proceed to WhatsApp & COD Checkout"
               >
                 <MessageCircle className="w-4 h-4" />
                 <span>Order via WhatsApp (Free)</span>
-              </a>
+                <ArrowRight className="w-4 h-4" />
+              </button>
             </div>
 
             <p className="text-[11px] text-center text-neutral-400">
-              No online card required • Pay cash upon doorstep delivery
+              No online payment required • Pay cash upon doorstep delivery
             </p>
           </div>
         )}

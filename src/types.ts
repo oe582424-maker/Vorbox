@@ -52,7 +52,7 @@ export interface Order {
   deliveryFee: number;
   totalAmount: number;
   paymentMethod: 'Cash on Delivery (COD)';
-  orderChannel: 'Website COD' | 'WhatsApp Direct';
+  orderChannel: 'Website COD' | 'WhatsApp Direct' | 'WhatsApp & Website COD';
   status: 'Pending' | 'Confirmed' | 'Dispatched' | 'Delivered' | 'Cancelled';
   createdAt: string;
 }
