@@ -284,17 +284,16 @@ export const ProductModal: React.FC<ProductModalProps> = ({
               </button>
             </div>
 
-            {/* Direct WhatsApp Instant Order Button */}
-            <a
+            {/* Order via WhatsApp Button -> Opens Checkout Modal to capture customer details first */}
+            <button
               id="modal-whatsapp-direct-btn"
-              href={whatsappUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm rounded-xl transition-all active:scale-98 shadow-sm flex items-center justify-center gap-2 text-center"
+              type="button"
+              onClick={handleBuyNow}
+              className="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm rounded-xl transition-all active:scale-98 shadow-sm flex items-center justify-center gap-2 text-center cursor-pointer"
             >
               <MessageCircle className="w-4 h-4" />
-              <span>1-Click Order via WhatsApp (Free)</span>
-            </a>
+              <span>Order via WhatsApp (Free COD)</span>
+            </button>
 
             {/* Delivery guarantee */}
             <div className="flex items-center justify-center gap-4 text-[11px] text-neutral-500 pt-1">

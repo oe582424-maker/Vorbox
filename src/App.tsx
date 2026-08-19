@@ -29,7 +29,7 @@ const CATEGORIES = [
 export default function App() {
   // 1. Settings State (Loaded with localStorage fallback)
   const [settings, setSettings] = useState<StoreSettings>(() => {
-    const saved = localStorage.getItem('crownborn_settings') || localStorage.getItem('vera_settings') || localStorage.getItem('vorbox_settings');
+    const saved = localStorage.getItem('vbox_settings') || localStorage.getItem('crownborn_settings') || localStorage.getItem('vera_settings') || localStorage.getItem('vorbox_settings');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -47,7 +47,7 @@ export default function App() {
 
   // 2. Products State
   const [products, setProducts] = useState<Product[]>(() => {
-    const saved = localStorage.getItem('crownborn_products') || localStorage.getItem('vera_products') || localStorage.getItem('vorbox_products');
+    const saved = localStorage.getItem('vbox_products') || localStorage.getItem('crownborn_products') || localStorage.getItem('vera_products') || localStorage.getItem('vorbox_products');
     if (saved) {
       try {
         return JSON.parse(saved);
@@ -60,7 +60,7 @@ export default function App() {
 
   // 3. Cart State
   const [cart, setCart] = useState<CartItem[]>(() => {
-    const saved = localStorage.getItem('crownborn_cart') || localStorage.getItem('vera_cart') || localStorage.getItem('vorbox_cart');
+    const saved = localStorage.getItem('vbox_cart') || localStorage.getItem('crownborn_cart') || localStorage.getItem('vera_cart') || localStorage.getItem('vorbox_cart');
     if (saved) {
       try {
         return JSON.parse(saved);
@@ -73,7 +73,7 @@ export default function App() {
 
   // 4. Orders State (Real customer orders only)
   const [orders, setOrders] = useState<Order[]>(() => {
-    const saved = localStorage.getItem('crownborn_orders') || localStorage.getItem('vera_orders') || localStorage.getItem('vorbox_orders');
+    const saved = localStorage.getItem('vbox_orders') || localStorage.getItem('crownborn_orders') || localStorage.getItem('vera_orders') || localStorage.getItem('vorbox_orders');
     if (saved) {
       try {
         return JSON.parse(saved);
@@ -101,19 +101,19 @@ export default function App() {
 
   // Sync to LocalStorage as instant local cache
   useEffect(() => {
-    localStorage.setItem('crownborn_settings', JSON.stringify(settings));
+    localStorage.setItem('vbox_settings', JSON.stringify(settings));
   }, [settings]);
 
   useEffect(() => {
-    localStorage.setItem('crownborn_products', JSON.stringify(products));
+    localStorage.setItem('vbox_products', JSON.stringify(products));
   }, [products]);
 
   useEffect(() => {
-    localStorage.setItem('crownborn_cart', JSON.stringify(cart));
+    localStorage.setItem('vbox_cart', JSON.stringify(cart));
   }, [cart]);
 
   useEffect(() => {
-    localStorage.setItem('crownborn_orders', JSON.stringify(orders));
+    localStorage.setItem('vbox_orders', JSON.stringify(orders));
   }, [orders]);
 
   // Real-time multi-device synchronization engine
@@ -385,6 +385,7 @@ export default function App() {
                 settings={settings}
                 onOpenProductModal={(p) => setSelectedProduct(p)}
                 onQuickAddToCart={(p, sz, clr) => handleAddToCart(p, sz, clr, 1)}
+                onOrderViaWhatsApp={(p, sz, clr) => handleBuyNowCOD(p, sz, clr, 1)}
               />
             ))}
           </div>

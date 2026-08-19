@@ -357,7 +357,7 @@
     }
   ],
   "settings": {
-    "storeName": "CROWNBORN",
+    "storeName": "V-BOX",
     "tagline": "Minimalist & Everyday Streetwear",
     "city": "Rangpur",
     "whatsappNumber": "8801866068916",
@@ -379,7 +379,43 @@
       "productId": "vb-101"
     }
   },
-  "orders": [],
-  "lastUpdated": 1787163881111,
-  "version": 2
+  "orders": [
+    {
+      "id": "ord_1787165752913",
+      "orderNumber": "CB-29138416",
+      "items": [
+        {
+          "productId": "vb-101",
+          "productName": "Heavyweight Boxy Drop-Shoulder Tee",
+          "size": "M",
+          "color": "Onyx Black",
+          "price": 550,
+          "quantity": 1,
+          "image": "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=1000&q=80"
+        },
+        {
+          "productId": "vb-102",
+          "productName": "Minimal Pique Cotton Polo",
+          "size": "S",
+          "color": "Midnight Navy",
+          "price": 750,
+          "quantity": 1,
+          "image": "https://images.unsplash.com/photo-1625910513413-7d312c14041b?auto=format&fit=crop&w=1000&q=80"
+        }
+      ],
+      "customerName": "Abdullah",
+      "customerPhone": "01866068916",
+      "deliveryArea": "Dc Mor, Rangpur, Rangpur",
+      "deliveryAddress": "Road no.8",
+      "subtotal": 1300,
+      "deliveryFee": 60,
+      "totalAmount": 1360,
+      "paymentMethod": "Cash on Delivery (COD)",
+      "orderChannel": "WhatsApp & Website COD",
+      "status": "Pending",
+      "createdAt": "2026-08-19T18:55:52.913Z"
+    }
+  ],
+  "lastUpdated": 1787165753503,
+  "version": 4
 }

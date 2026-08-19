@@ -27,7 +27,7 @@ const DEFAULT_FEATURED_DROP = {
 };
 
 const DEFAULT_STORE_SETTINGS = {
-  storeName: 'CROWNBORN',
+  storeName: 'V-BOX',
   tagline: 'Minimalist & Everyday Streetwear',
   city: 'Rangpur',
   whatsappNumber: '8801866068916',

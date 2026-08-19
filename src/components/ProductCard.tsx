@@ -8,6 +8,7 @@ interface ProductCardProps {
   settings: StoreSettings;
   onOpenProductModal: (product: Product) => void;
   onQuickAddToCart: (product: Product, size: 'S' | 'M' | 'L' | 'XL' | 'XXL', color: { name: string; hex: string }) => void;
+  onOrderViaWhatsApp: (product: Product, size: 'S' | 'M' | 'L' | 'XL' | 'XXL', color: { name: string; hex: string }) => void;
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({
@@ -15,6 +16,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   settings,
   onOpenProductModal,
   onQuickAddToCart,
+  onOrderViaWhatsApp,
 }) => {
   const [selectedSize, setSelectedSize] = useState<'S' | 'M' | 'L' | 'XL' | 'XXL'>(product.sizes[0] || 'M');
   const [selectedColor, setSelectedColor] = useState(product.colors[0] || { name: 'Standard', hex: '#111' });
@@ -27,13 +29,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     setTimeout(() => setAddedToast(false), 1800);
   };
 
-  const whatsappOrderUrl = createProductWhatsAppUrl(
-    product,
-    selectedSize,
-    selectedColor.name,
-    1,
-    settings
-  );
+  const handleWhatsAppOrderClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onOrderViaWhatsApp(product, selectedSize, selectedColor);
+  };
 
   return (
     <div
@@ -180,18 +179,17 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             )}
           </button>
 
-          {/* WhatsApp Direct 1-Click Order */}
-          <a
+          {/* WhatsApp Direct 1-Click Order -> Opens Checkout Modal with Address first */}
+          <button
             id={`whatsapp-order-${product.id}`}
-            href={whatsappOrderUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="py-2 px-2.5 rounded-lg text-xs font-semibold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center justify-center gap-1 transition-all active:scale-95 text-center"
-            title="Order directly via WhatsApp (Free)"
+            type="button"
+            onClick={handleWhatsAppOrderClick}
+            className="py-2 px-2.5 rounded-lg text-xs font-semibold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center justify-center gap-1 transition-all active:scale-95 text-center cursor-pointer"
+            title="Order via WhatsApp (Pay Cash on Delivery)"
           >
             <MessageCircle className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
             <span className="truncate">WhatsApp</span>
-          </a>
+          </button>
         </div>
       </div>
     </div>
