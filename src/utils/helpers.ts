@@ -4,7 +4,7 @@ export function formatBDT(amount: number): string {
   return `৳${amount.toLocaleString('en-BD')}`;
 }
 
-// Fallback business numbers for Vorbox (Bangladesh format)
+// Fallback business numbers for CrownBorn (Bangladesh format)
 export const DEFAULT_BUSINESS_WHATSAPP = '8801866068916';
 export const SECONDARY_BUSINESS_WHATSAPP = '8801982135000';
 
@@ -49,7 +49,7 @@ export function cleanPhoneForWhatsApp(phone?: string | null): string {
 }
 
 export function generateOrderNumber(): string {
-  const prefix = 'VB';
+  const prefix = 'CB';
   const timestamp = Date.now().toString().slice(-4);
   const random = Math.floor(1000 + Math.random() * 9000);
   return `${prefix}-${timestamp}${random}`;
@@ -67,7 +67,7 @@ export function createProductWhatsAppUrl(
   const targetPhone = cleanPhoneForWhatsApp(settings.whatsappNumber);
 
   const message = [
-    `👋 Hello *${settings.storeName || 'VORBOX'}* (${settings.city || 'Sundarganj'})!`,
+    `👋 Hello *${settings.storeName || 'CROWNBORN'}* (${settings.city || 'Rangpur'})!`,
     `I would like to order this item:`,
     ``,
     `🛍️ *Product:* ${product.name}`,
@@ -77,7 +77,7 @@ export function createProductWhatsAppUrl(
     `💵 *Item Total:* ৳${subtotal}`,
     `🚚 *Payment Method:* Cash on Delivery (COD)`,
     ``,
-    `📍 *Delivery City:* ${settings.city || 'Sundarganj'}`,
+    `📍 *Delivery City:* ${settings.city || 'Rangpur'}`,
     `Please confirm availability & dispatch schedule. Thank you!`,
   ].join('\n');
 
@@ -121,7 +121,7 @@ export function createCartWhatsAppUrl(
     .join('\n');
 
   const message = [
-    `👋 Hello *${settings.storeName || 'VORBOX'}*!`,
+    `👋 Hello *${settings.storeName || 'CROWNBORN'}*!`,
     `I would like to place a Cash on Delivery order:`,
     ``,
     `📦 *ORDERED ITEMS:*`,
@@ -155,7 +155,7 @@ export function createOrderReceiptWhatsAppUrl(
     .join('\n');
 
   const message = [
-    `👋 Hello *${settings.storeName || 'VORBOX'}*!`,
+    `👋 Hello *${settings.storeName || 'CROWNBORN'}*!`,
     `I placed an order on the website:`,
     ``,
     `🔖 *Order ID:* ${order.orderNumber}`,

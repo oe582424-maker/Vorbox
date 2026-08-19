@@ -135,7 +135,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     e.preventDefault();
     if (passwordInput === correctPassword) {
       setIsAuthenticated(true);
-      sessionStorage.setItem('vorbox_admin_auth', 'true');
+      sessionStorage.setItem('crownborn_admin_auth', 'true');
       setAuthError('');
     } else {
       setAuthError('Incorrect admin password. Please check and try again.');
@@ -144,6 +144,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 
   const handleLogout = () => {
     setIsAuthenticated(false);
+    sessionStorage.removeItem('crownborn_admin_auth');
     sessionStorage.removeItem('vorbox_admin_auth');
     setPasswordInput('');
   };
@@ -414,14 +415,14 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `vorbox_orders_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.setAttribute('download', `crownborn_orders_${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
   const testWhatsAppUrl = `https://wa.me/${cleanPhoneForWhatsApp(formSettings.whatsappNumber)}?text=${encodeURIComponent(
-    `Hello! This is a test message from Vorbox Admin Portal for ${formSettings.storeName} in ${formSettings.city}.`
+    `Hello! This is a test message from CrownBorn Admin Portal for ${formSettings.storeName} in ${formSettings.city}.`
   )}`;
 
   return (

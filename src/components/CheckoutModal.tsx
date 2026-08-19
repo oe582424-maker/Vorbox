@@ -232,15 +232,15 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold">Inside Local City / Area</span>
-                  <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
+                  <span className="text-xs font-bold">Inside Local City / Area (Rangpur)</span>
+                  <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${
                     selectedRegionType === 'local' ? 'bg-neutral-800 text-emerald-300' : 'bg-neutral-200 text-neutral-700'
                   }`}>
-                    ৳{settings.insideCityDeliveryFee} Delivery
+                    ৳{settings.insideCityDeliveryFee || 60} Delivery
                   </span>
                 </div>
                 <p className={`text-[11px] mt-0.5 ${selectedRegionType === 'local' ? 'text-neutral-300' : 'text-neutral-500'}`}>
-                  Local city & surrounding area
+                  Rangpur local city & surrounding area
                 </p>
               </button>
 
@@ -254,11 +254,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold">Nationwide Courier</span>
-                  <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
+                  <span className="text-xs font-bold">Nationwide Courier (Outside Rangpur)</span>
+                  <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${
                     selectedRegionType === 'nationwide' ? 'bg-neutral-800 text-emerald-300' : 'bg-neutral-200 text-neutral-700'
                   }`}>
-                    ৳{settings.outsideCityDeliveryFee} Delivery
+                    ৳{settings.outsideCityDeliveryFee || 120} Delivery
                   </span>
                 </div>
                 <p className={`text-[11px] mt-0.5 ${selectedRegionType === 'nationwide' ? 'text-neutral-300' : 'text-neutral-500'}`}>
@@ -381,65 +381,24 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             </div>
           </div>
 
-          {/* Action CTAs */}
-          <div className="space-y-2 pt-2">
+          {/* Action CTA - Single Solid Black WhatsApp Button */}
+          <div className="pt-2">
             <button
               id="confirm-order-submit-btn"
               type="submit"
               disabled={isSubmitting}
-              className="w-full py-3.5 px-4 bg-emerald-600 hover:bg-emerald-500 disabled:bg-neutral-400 text-white font-bold text-sm rounded-xl transition-all active:scale-98 shadow-md flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full py-4 px-4 bg-neutral-950 hover:bg-neutral-900 active:bg-black disabled:bg-neutral-400 text-white font-bold text-sm sm:text-base rounded-xl sm:rounded-2xl transition-all active:scale-98 shadow-lg flex items-center justify-center gap-2.5 cursor-pointer"
             >
               {isSubmitting ? (
                 <span>Confirming and opening WhatsApp...</span>
               ) : (
                 <>
-                  <MessageCircle className="w-4 h-4" />
+                  <MessageCircle className="w-5 h-5 text-emerald-400 shrink-0" />
                   <span>Confirm Order via WhatsApp (Pay {formatBDT(total)} COD)</span>
-                  <ArrowRight className="w-4 h-4" />
+                  <ArrowRight className="w-4 h-4 text-neutral-400" />
                 </>
               )}
             </button>
-
-            <a
-              id="checkout-whatsapp-direct-link"
-              href={whatsappCheckoutUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() => {
-                if (customerName.trim() && deliveryAddress.trim() && districtCity.trim()) {
-                  const fullAreaString = [deliveryArea.trim(), districtCity.trim()].filter(Boolean).join(', ') || 'Home Delivery';
-                  onOrderSuccess({
-                    id: `ord_${Date.now()}`,
-                    orderNumber: generateOrderNumber(),
-                    items: cart.map((i) => ({
-                      productId: i.productId,
-                      productName: i.product.name,
-                      size: i.selectedSize,
-                      color: i.selectedColor.name,
-                      price: i.product.price,
-                      quantity: i.quantity,
-                      image: i.product.images[0],
-                    })),
-                    customerName: customerName.trim(),
-                    customerPhone: customerPhone.trim(),
-                    deliveryArea: fullAreaString,
-                    deliveryAddress: deliveryAddress.trim(),
-                    deliveryNotes: deliveryNotes.trim() || undefined,
-                    subtotal,
-                    deliveryFee,
-                    totalAmount: total,
-                    paymentMethod: 'Cash on Delivery (COD)',
-                    orderChannel: 'WhatsApp Direct',
-                    status: 'Pending',
-                    createdAt: new Date().toISOString(),
-                  });
-                }
-              }}
-              className="w-full py-2.5 px-4 bg-neutral-900 hover:bg-neutral-800 text-white font-bold text-xs sm:text-sm rounded-xl transition-all active:scale-98 shadow-xs flex items-center justify-center gap-2 text-center"
-            >
-              <ShieldCheck className="w-4 h-4 text-emerald-400" />
-              <span>Or Place Directly via WhatsApp</span>
-            </a>
           </div>
         </form>
       </div>

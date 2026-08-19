@@ -12,16 +12,16 @@ export const DEFAULT_FEATURED_DROP: FeaturedDrop = {
 };
 
 export const DEFAULT_STORE_SETTINGS: StoreSettings = {
-  storeName: 'VORBOX',
+  storeName: 'CROWNBORN',
   tagline: 'Minimalist & Everyday Streetwear',
-  city: 'Sundarganj Thana',
+  city: 'Rangpur',
   whatsappNumber: '8801866068916',
   whatsappDisplayNumber: '+880 1866-068916',
-  insideCityDeliveryFee: 40,
-  outsideCityDeliveryFee: 80,
-  freeDeliveryThreshold: 1200,
-  bannerNotice: '⚡ Within 12h Fast Delivery | Cash on Delivery Available | Order via Website or WhatsApp',
-  storeAddress: 'Sundarganj Main Bazar, Bangladesh',
+  insideCityDeliveryFee: 60,
+  outsideCityDeliveryFee: 120,
+  freeDeliveryThreshold: 1500,
+  bannerNotice: '⚡ Fast Delivery | Cash on Delivery Available | Order via Website or WhatsApp',
+  storeAddress: 'Rangpur, Bangladesh',
   adminPassword: 'akm125@#155Ab12*',
   featuredDrop: DEFAULT_FEATURED_DROP,
 };
