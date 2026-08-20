@@ -56,6 +56,22 @@ export const SUNDARGANJ_DELIVERY_AREAS = [
   'Other Union / Area in Sundarganj Thana',
 ];
 
+// All 64 Districts of Bangladesh
+export const BANGLADESH_DISTRICTS = [
+  'Bagerhat', 'Bandarban', 'Barguna', 'Barisal', 'Bhola', 'Bogra',
+  'Brahmanbaria', 'Chandpur', 'Chapai Nawabganj', 'Chittagong', 'Chuadanga',
+  'Comilla', "Cox's Bazar", 'Dhaka', 'Dinajpur', 'Faridpur', 'Feni',
+  'Gaibandha', 'Gazipur', 'Gopalganj', 'Habiganj', 'Jamalpur', 'Jessore',
+  'Jhalokati', 'Jhenaidah', 'Joypurhat', 'Khagrachhari', 'Khulna',
+  'Kishoreganj', 'Kurigram', 'Kushtia', 'Lakshmipur', 'Lalmonirhat',
+  'Madaripur', 'Magura', 'Manikganj', 'Meherpur', 'Moulvibazar',
+  'Munshiganj', 'Mymensingh', 'Naogaon', 'Narail', 'Narayanganj',
+  'Narsingdi', 'Natore', 'Netrakona', 'Nilphamari', 'Noakhali',
+  'Pabna', 'Panchagarh', 'Patuakhali', 'Pirojpur', 'Rajbari',
+  'Rajshahi', 'Rangamati', 'Rangpur', 'Satkhira', 'Shariatpur',
+  'Sherpur', 'Sirajganj', 'Sunamganj', 'Sylhet', 'Tangail', 'Thakurgaon',
+] as const;
+
 // Alias for backward compatibility
 export const RANGPUR_DELIVERY_AREAS = SUNDARGANJ_DELIVERY_AREAS;
 

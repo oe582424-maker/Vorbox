@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   X,
-  Package,
   Settings,
   ShoppingBag,
   Plus,
@@ -10,7 +9,6 @@ import {
   CheckCircle,
   MessageCircle,
   Phone,
-  Download,
   RotateCcw,
   Save,
   Truck,
@@ -26,22 +24,17 @@ import {
   Search,
   Check,
   AlertCircle,
-  TrendingUp,
   Tag,
   Sliders,
   ArrowUpDown,
-  FileSpreadsheet,
 } from 'lucide-react';
-import { Order, Product, StoreSettings, FeaturedDrop, HeroSettings } from '../types';
+import { Product, StoreSettings, FeaturedDrop, HeroSettings } from '../types';
 import { DEFAULT_FEATURED_DROP, DEFAULT_CATEGORIES } from '../data/defaultData';
 import { formatBDT, cleanPhoneForWhatsApp } from '../utils/helpers';
 
 interface AdminModalProps {
   isOpen: boolean;
   onClose: () => void;
-  orders: Order[];
-  onUpdateOrderStatus: (orderId: string, status: Order['status']) => void;
-  onDeleteOrder: (orderId: string) => void;
   products: Product[];
   onAddProduct: (product: Product) => void;
   onUpdateProduct: (product: Product) => void;
@@ -54,9 +47,6 @@ interface AdminModalProps {
 export const AdminModal: React.FC<AdminModalProps> = ({
   isOpen,
   onClose,
-  orders,
-  onUpdateOrderStatus,
-  onDeleteOrder,
   products,
   onAddProduct,
   onUpdateProduct,
@@ -78,12 +68,8 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   const [showPassword, setShowPassword] = useState(false);
   const [authError, setAuthError] = useState('');
 
-  // Active Admin Tab
-  const [activeTab, setActiveTab] = useState<'orders' | 'products' | 'categories' | 'hero' | 'settings'>('orders');
-
-  // Orders State & Filters
-  const [orderFilter, setOrderFilter] = useState<'all' | Order['status']>('all');
-  const [orderSearchQuery, setOrderSearchQuery] = useState('');
+  // Active Admin Tab (Catalog Management & Store Settings)
+  const [activeTab, setActiveTab] = useState<'products' | 'categories' | 'hero' | 'settings'>('products');
 
   // Store Settings Form State
   const [formSettings, setFormSettings] = useState<StoreSettings>(settings);
@@ -172,46 +158,6 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     sessionStorage.removeItem('crownborn_admin_auth');
     sessionStorage.removeItem('vorbox_admin_auth');
     setPasswordInput('');
-  };
-
-  // -------------------- ORDERS FILTERING & EXPORT --------------------
-  const filteredOrders = orders.filter((o) => {
-    const matchesStatus = orderFilter === 'all' || o.status === orderFilter;
-    const matchesSearch =
-      !orderSearchQuery ||
-      o.orderNumber.toLowerCase().includes(orderSearchQuery.toLowerCase()) ||
-      o.customerName.toLowerCase().includes(orderSearchQuery.toLowerCase()) ||
-      o.customerPhone.includes(orderSearchQuery) ||
-      o.deliveryArea.toLowerCase().includes(orderSearchQuery.toLowerCase()) ||
-      o.deliveryAddress.toLowerCase().includes(orderSearchQuery.toLowerCase());
-    return matchesStatus && matchesSearch;
-  });
-
-  const totalRevenue = orders.reduce((sum, ord) => sum + (ord.status !== 'Cancelled' ? ord.totalAmount : 0), 0);
-  const pendingCount = orders.filter((o) => o.status === 'Pending').length;
-  const deliveredCount = orders.filter((o) => o.status === 'Delivered').length;
-
-  const exportOrdersCSV = () => {
-    const headers = ['OrderID', 'CustomerName', 'Phone', 'Area', 'Address', 'Items', 'TotalAmount', 'Status', 'CreatedAt'];
-    const rows = orders.map((o) => [
-      o.orderNumber,
-      `"${o.customerName.replace(/"/g, '""')}"`,
-      o.customerPhone,
-      `"${o.deliveryArea.replace(/"/g, '""')}"`,
-      `"${o.deliveryAddress.replace(/"/g, '""')}"`,
-      `"${o.items.map((i) => `${i.productName} (${i.size}, ${i.color}, x${i.quantity})`).join('; ')}"`,
-      o.totalAmount,
-      o.status,
-      o.createdAt,
-    ]);
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `crownborn_orders_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
   };
 
   // -------------------- CATEGORY MANAGEMENT HANDLERS --------------------
@@ -634,23 +580,6 @@ export const AdminModal: React.FC<AdminModalProps> = ({
             <div className="p-2 sm:px-6 bg-neutral-100 border-b border-neutral-200 flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
                 <button
-                  id="admin-tab-orders"
-                  onClick={() => {
-                    setActiveTab('orders');
-                    setIsAddingProduct(false);
-                  }}
-                  className={`px-3 py-2 text-xs sm:text-sm font-bold rounded-xl flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
-                    activeTab === 'orders' ? 'bg-neutral-900 text-white shadow-xs' : 'text-neutral-600 hover:bg-neutral-200'
-                  }`}
-                >
-                  <Package className="w-4 h-4" />
-                  <span>Orders</span>
-                  <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] ${activeTab === 'orders' ? 'bg-neutral-700 text-white' : 'bg-neutral-200 text-neutral-700'}`}>
-                    {orders.length}
-                  </span>
-                </button>
-
-                <button
                   id="admin-tab-products"
                   onClick={() => setActiveTab('products')}
                   className={`px-3 py-2 text-xs sm:text-sm font-bold rounded-xl flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
@@ -718,227 +647,9 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                   <span>Store Settings</span>
                 </button>
               </div>
-
-              {activeTab === 'orders' && orders.length > 0 && (
-                <button
-                  onClick={exportOrdersCSV}
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-neutral-700 bg-white border border-neutral-300 px-3 py-1.5 rounded-lg hover:bg-neutral-50 shadow-2xs cursor-pointer"
-                >
-                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Export CSV</span>
-                </button>
-              )}
             </div>
 
-            {/* ==================== TAB 1: ORDERS ==================== */}
-            {activeTab === 'orders' && (
-              <div className="p-4 sm:p-6 overflow-y-auto space-y-4 max-h-[72vh]">
-                {/* Stats cards */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <div className="bg-neutral-50 p-3 rounded-xl border border-neutral-200">
-                    <span className="text-[11px] font-semibold text-neutral-500 uppercase">Total Orders</span>
-                    <p className="text-lg sm:text-xl font-mono font-black text-neutral-900 mt-0.5">{orders.length}</p>
-                  </div>
-                  <div className="bg-neutral-50 p-3 rounded-xl border border-neutral-200">
-                    <span className="text-[11px] font-semibold text-neutral-500 uppercase">Total COD Value</span>
-                    <p className="text-lg sm:text-xl font-mono font-black text-emerald-700 mt-0.5">{formatBDT(totalRevenue)}</p>
-                  </div>
-                  <div className="bg-amber-50/60 p-3 rounded-xl border border-amber-200/80">
-                    <span className="text-[11px] font-semibold text-amber-800 uppercase">Pending Orders</span>
-                    <p className="text-lg sm:text-xl font-mono font-black text-amber-900 mt-0.5">{pendingCount}</p>
-                  </div>
-                  <div className="bg-emerald-50/60 p-3 rounded-xl border border-emerald-200/80">
-                    <span className="text-[11px] font-semibold text-emerald-800 uppercase">Delivered Orders</span>
-                    <p className="text-lg sm:text-xl font-mono font-black text-emerald-900 mt-0.5">{deliveredCount}</p>
-                  </div>
-                </div>
-
-                {/* Filter and Search Toolbar */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
-                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
-                    {(['all', 'Pending', 'Confirmed', 'Dispatched', 'Delivered', 'Cancelled'] as const).map((st) => (
-                      <button
-                        key={st}
-                        onClick={() => setOrderFilter(st)}
-                        className={`px-3 py-1 text-xs font-semibold rounded-full capitalize whitespace-nowrap transition-colors cursor-pointer ${
-                          orderFilter === st
-                            ? 'bg-neutral-900 text-white shadow-xs'
-                            : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
-                        }`}
-                      >
-                        {st} {st !== 'all' && `(${orders.filter((o) => o.status === st).length})`}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="relative min-w-[220px]">
-                    <Search className="w-3.5 h-3.5 text-neutral-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="text"
-                      value={orderSearchQuery}
-                      onChange={(e) => setOrderSearchQuery(e.target.value)}
-                      placeholder="Search name, phone, area..."
-                      className="w-full pl-8 pr-3 py-1.5 text-xs bg-neutral-50 border border-neutral-300 rounded-lg focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-neutral-900"
-                    />
-                  </div>
-                </div>
-
-                {filteredOrders.length === 0 ? (
-                  <div className="text-center py-12 bg-neutral-50 rounded-2xl border border-neutral-200 text-neutral-500 text-xs">
-                    <Package className="w-10 h-10 mx-auto text-neutral-300 mb-2" />
-                    <p className="font-semibold text-sm text-neutral-700">No orders match your filter</p>
-                    <p className="mt-1">When customers place COD orders or reach out via WhatsApp, orders appear here.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {filteredOrders.map((ord) => {
-                      const customerCleanPhone = cleanPhoneForWhatsApp(ord.customerPhone);
-                      const whatsappCustomerChat = `https://wa.me/${customerCleanPhone}?text=${encodeURIComponent(
-                        `Hello ${ord.customerName}! We received your ${settings.storeName} COD order (${ord.orderNumber}). Current Status: ${ord.status}. Delivery Address: ${ord.deliveryAddress}, ${ord.deliveryArea}. Total Cash to Collect: ${formatBDT(ord.totalAmount)}.`
-                      )}`;
-
-                      return (
-                        <div
-                          key={ord.id}
-                          className="bg-white p-4 rounded-xl border border-neutral-200 shadow-xs space-y-3 hover:border-neutral-400 transition-colors"
-                        >
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-100 pb-2.5">
-                            <div>
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="font-mono font-black text-sm text-neutral-900">{ord.orderNumber}</span>
-                                <span className="text-[11px] text-neutral-500 font-medium">
-                                  {new Date(ord.createdAt).toLocaleDateString()} at{' '}
-                                  {new Date(ord.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                </span>
-                                <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-neutral-100 text-neutral-700">
-                                  {ord.orderChannel}
-                                </span>
-                              </div>
-                              <p className="text-xs text-neutral-600 mt-0.5">
-                                <strong>{ord.customerName}</strong> • Phone:{' '}
-                                <a href={`tel:${ord.customerPhone}`} className="underline text-neutral-900 font-semibold">
-                                  {ord.customerPhone}
-                                </a>
-                              </p>
-                            </div>
-
-                            {/* Order Status Dropdown */}
-                            <div className="flex items-center gap-2">
-                              <label className="text-xs text-neutral-500 font-medium">Status:</label>
-                              <select
-                                value={ord.status}
-                                onChange={(e) => onUpdateOrderStatus(ord.id, e.target.value as any)}
-                                className={`text-xs font-bold px-2.5 py-1 rounded-lg border focus:outline-hidden cursor-pointer ${
-                                  ord.status === 'Delivered'
-                                    ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
-                                    : ord.status === 'Dispatched'
-                                    ? 'bg-indigo-50 text-indigo-800 border-indigo-300'
-                                    : ord.status === 'Confirmed'
-                                    ? 'bg-blue-50 text-blue-800 border-blue-300'
-                                    : ord.status === 'Cancelled'
-                                    ? 'bg-rose-50 text-rose-800 border-rose-300'
-                                    : 'bg-amber-50 text-amber-800 border-amber-300'
-                                }`}
-                              >
-                                <option value="Pending">Pending (Received)</option>
-                                <option value="Confirmed">Confirmed</option>
-                                <option value="Dispatched">Dispatched (Fast Delivery)</option>
-                                <option value="Delivered">Delivered (Cash Collected)</option>
-                                <option value="Cancelled">Cancelled</option>
-                              </select>
-                            </div>
-                          </div>
-
-                          {/* Delivery Address */}
-                          <div className="bg-neutral-50 p-2.5 rounded-lg text-xs space-y-1 text-neutral-700">
-                            <div>
-                              <span className="text-neutral-400">Delivery Address: </span>
-                              <strong className="text-neutral-900">{ord.deliveryAddress}</strong> ({ord.deliveryArea})
-                            </div>
-                            {ord.deliveryNotes && (
-                              <div className="text-amber-800 text-[11px]">
-                                <span>Customer Note: </span>
-                                <em>{ord.deliveryNotes}</em>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Items Ordered */}
-                          <div className="text-xs space-y-1">
-                            <span className="text-[11px] font-semibold text-neutral-500 uppercase">Items Ordered:</span>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                              {ord.items.map((it, i) => (
-                                <div key={i} className="flex items-center gap-2 bg-neutral-100/80 p-2 rounded-md">
-                                  <img
-                                    src={it.image}
-                                    alt={it.productName}
-                                    className="w-9 h-9 object-cover rounded bg-neutral-200"
-                                    referrerPolicy="no-referrer"
-                                  />
-                                  <div className="text-[11px] leading-tight">
-                                    <span className="font-semibold text-neutral-900 block line-clamp-1">{it.productName}</span>
-                                    <span className="text-neutral-500 block">
-                                      Size: {it.size} | Color: {it.color} | Qty: {it.quantity} × {formatBDT(it.price)}
-                                    </span>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-
-                          {/* Total & Action Toolbar */}
-                          <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-neutral-100 text-xs">
-                            <div className="flex items-center gap-3">
-                              <span className="text-neutral-600">
-                                Total COD to collect:{' '}
-                                <strong className="font-mono font-black text-sm text-neutral-950">
-                                  {formatBDT(ord.totalAmount)}
-                                </strong>
-                              </span>
-                              <span className="text-[11px] text-neutral-400">
-                                (Items: {formatBDT(ord.subtotal)} + Delivery: {formatBDT(ord.deliveryFee)})
-                              </span>
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                              <a
-                                href={whatsappCustomerChat}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-lg text-xs font-semibold cursor-pointer"
-                                title="Update Customer on WhatsApp"
-                              >
-                                <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
-                                <span>WhatsApp Customer</span>
-                              </a>
-
-                              <a
-                                href={`tel:${ord.customerPhone}`}
-                                className="inline-flex items-center gap-1 px-3 py-1.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 rounded-lg text-xs font-semibold cursor-pointer"
-                              >
-                                <Phone className="w-3.5 h-3.5" />
-                                <span>Call</span>
-                              </a>
-
-                              <button
-                                type="button"
-                                onClick={() => onDeleteOrder(ord.id)}
-                                className="p-1.5 text-neutral-400 hover:text-rose-600 transition-colors cursor-pointer"
-                                title="Delete order"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* ==================== TAB 2: PRODUCTS & INVENTORY ==================== */}
+            {/* ==================== TAB: PRODUCTS & INVENTORY ==================== */}
             {activeTab === 'products' && (
               <div className="p-4 sm:p-6 overflow-y-auto space-y-4 max-h-[72vh]">
                 <div className="flex items-center justify-between flex-wrap gap-2">

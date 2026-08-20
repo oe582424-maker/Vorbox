@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, ShieldCheck, MapPin, Phone, User, FileText, Truck, ArrowRight, MessageCircle, Globe } from 'lucide-react';
 import { CartItem, Order, StoreSettings } from '../types';
 import { formatBDT, generateOrderNumber, createCartWhatsAppUrl } from '../utils/helpers';
+import { BANGLADESH_DISTRICTS } from '../data/defaultData';
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -118,11 +119,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     // Persist order in local state and database
     onOrderSuccess(newOrder);
 
-    // IMMEDIATELY trigger direct redirect to WhatsApp without intermediate screens
+    // Simultaneously trigger direct WhatsApp redirection and show order confirmation receipt
     try {
-      window.location.href = whatsappCheckoutUrl;
+      window.open(whatsappCheckoutUrl, '_blank');
     } catch {
-      window.open(whatsappCheckoutUrl, '_top');
+      window.location.href = whatsappCheckoutUrl;
     }
   };
 
@@ -268,17 +269,22 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-neutral-700 mb-1">
-                  District / City <span className="text-rose-500">*</span>
+                  District <span className="text-rose-500">*</span>
                 </label>
-                <input
-                  id="checkout-district-input"
-                  type="text"
+                <select
+                  id="checkout-district-select"
                   required
                   value={districtCity}
                   onChange={(e) => setDistrictCity(e.target.value)}
-                  placeholder="e.g. Dhaka, Rangpur, Chittagong, Sylhet..."
-                  className="w-full px-3 py-2 text-sm bg-neutral-50 border border-neutral-300 rounded-lg focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-neutral-900"
-                />
+                  className="w-full px-3 py-2 text-sm bg-neutral-50 border border-neutral-300 rounded-lg focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-neutral-900 cursor-pointer"
+                >
+                  <option value="">Select Your District</option>
+                  {BANGLADESH_DISTRICTS.map((district) => (
+                    <option key={district} value={district}>
+                      {district}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
