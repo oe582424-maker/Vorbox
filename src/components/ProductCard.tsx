@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { ShoppingBag, MessageCircle, Eye, Check } from 'lucide-react';
-import { Product, StoreSettings } from '../types';
+import { Product, StoreSettings, CartItem } from '../types';
 import { formatBDT, createProductWhatsAppUrl } from '../utils/helpers';
 
 interface ProductCardProps {
   product: Product;
   settings: StoreSettings;
+  cart?: CartItem[];
   onOpenProductModal: (product: Product) => void;
   onQuickAddToCart: (product: Product, size: 'S' | 'M' | 'L' | 'XL' | 'XXL', color: { name: string; hex: string }) => void;
   onOrderViaWhatsApp: (product: Product, size: 'S' | 'M' | 'L' | 'XL' | 'XXL', color: { name: string; hex: string }) => void;
@@ -14,19 +15,25 @@ interface ProductCardProps {
 export const ProductCard: React.FC<ProductCardProps> = ({
   product,
   settings,
+  cart = [],
   onOpenProductModal,
   onQuickAddToCart,
   onOrderViaWhatsApp,
 }) => {
   const [selectedSize, setSelectedSize] = useState<'S' | 'M' | 'L' | 'XL' | 'XXL'>(product.sizes[0] || 'M');
   const [selectedColor, setSelectedColor] = useState(product.colors[0] || { name: 'Standard', hex: '#111' });
-  const [addedToast, setAddedToast] = useState(false);
+
+  // Persistent in-bag verification for the specific size and color
+  const isInCart = cart.some(
+    (item) =>
+      item.productId === product.id &&
+      item.selectedSize === selectedSize &&
+      item.selectedColor.name === selectedColor.name
+  );
 
   const handleQuickAdd = (e: React.MouseEvent) => {
     e.stopPropagation();
     onQuickAddToCart(product, selectedSize, selectedColor);
-    setAddedToast(true);
-    setTimeout(() => setAddedToast(false), 1800);
   };
 
   const handleWhatsAppOrderClick = (e: React.MouseEvent) => {
@@ -162,13 +169,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             id={`quick-add-${product.id}`}
             type="button"
             onClick={handleQuickAdd}
-            className={`py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-95 ${
-              addedToast
-                ? 'bg-emerald-600 text-white'
+            className={`py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer ${
+              isInCart
+                ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs'
                 : 'bg-neutral-900 hover:bg-neutral-800 text-white'
             }`}
+            title={isInCart ? 'Item in your bag. Click to add more' : 'Add to bag'}
           >
-            {addedToast ? (
+            {isInCart ? (
               <>
                 <Check className="w-3.5 h-3.5" /> Added
               </>

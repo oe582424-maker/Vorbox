@@ -35,7 +35,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ settings, onExploreCli
             <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white font-mono uppercase leading-tight">
               Minimalist Wear.<br />
               <span className="text-neutral-400 font-sans normal-case font-normal text-2xl sm:text-4xl block mt-1">
-                Delivered directly to your doorstep within 12 hours.
+                Delivered directly to your doorstep with Fast Delivery.
               </span>
             </h1>
 
@@ -58,8 +58,6 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ settings, onExploreCli
               <a
                 id="hero-whatsapp-btn"
                 href={whatsappConsultUrl}
-                target="_blank"
-                rel="noopener noreferrer"
                 className="inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-sm rounded-full transition-all active:scale-95 shadow-md"
               >
                 <MessageCircle className="w-4 h-4" />
@@ -72,7 +70,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ settings, onExploreCli
               <div className="flex items-center gap-2">
                 <Truck className="w-4 h-4 text-emerald-400 shrink-0" />
                 <div className="text-left">
-                  <p className="text-xs font-semibold text-white">Within 12h Delivery</p>
+                  <p className="text-xs font-semibold text-white">Fast Delivery</p>
                   <p className="text-[11px] text-neutral-400">Fast doorstep drop</p>
                 </div>
               </div>

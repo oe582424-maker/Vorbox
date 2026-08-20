@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { X, MessageCircle, ShoppingBag, Truck, ShieldCheck, Check, Info, Sparkles } from 'lucide-react';
-import { Product, StoreSettings } from '../types';
+import { Product, StoreSettings, CartItem } from '../types';
 import { formatBDT, createProductWhatsAppUrl } from '../utils/helpers';
 
 interface ProductModalProps {
   product: Product | null;
   settings: StoreSettings;
+  cart?: CartItem[];
   onClose: () => void;
   onAddToCart: (
     product: Product,
@@ -25,6 +26,7 @@ interface ProductModalProps {
 export const ProductModal: React.FC<ProductModalProps> = ({
   product,
   settings,
+  cart = [],
   onClose,
   onAddToCart,
   onOpenSizeGuide,
@@ -37,6 +39,14 @@ export const ProductModal: React.FC<ProductModalProps> = ({
   const [selectedColor, setSelectedColor] = useState(product.colors[0] || { name: 'Standard', hex: '#111' });
   const [quantity, setQuantity] = useState(1);
   const [showAddedNotice, setShowAddedNotice] = useState(false);
+
+  // Persistent in-bag verification
+  const isInCart = cart.some(
+    (item) =>
+      item.productId === product.id &&
+      item.selectedSize === selectedSize &&
+      item.selectedColor.name === selectedColor.name
+  );
 
   const handleAddToCart = () => {
     onAddToCart(product, selectedSize, selectedColor, quantity);
@@ -277,10 +287,23 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                 id="modal-addtobag-btn"
                 type="button"
                 onClick={handleAddToCart}
-                className="w-full py-3 px-4 bg-neutral-100 hover:bg-neutral-200 text-neutral-900 font-bold text-xs sm:text-sm rounded-xl transition-all active:scale-98 border border-neutral-300 flex items-center justify-center gap-2"
+                className={`w-full py-3 px-4 font-bold text-xs sm:text-sm rounded-xl transition-all active:scale-98 border flex items-center justify-center gap-2 cursor-pointer ${
+                  isInCart
+                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 shadow-xs'
+                    : 'bg-neutral-100 hover:bg-neutral-200 text-neutral-900 border-neutral-300'
+                }`}
               >
-                <ShoppingBag className="w-4 h-4" />
-                <span>Add to Shopping Bag</span>
+                {isInCart ? (
+                  <>
+                    <Check className="w-4 h-4 text-white" />
+                    <span>✓ Added in Bag</span>
+                  </>
+                ) : (
+                  <>
+                    <ShoppingBag className="w-4 h-4" />
+                    <span>Add to Shopping Bag</span>
+                  </>
+                )}
               </button>
             </div>
 
@@ -298,7 +321,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
             {/* Delivery guarantee */}
             <div className="flex items-center justify-center gap-4 text-[11px] text-neutral-500 pt-1">
               <span className="flex items-center gap-1">
-                <Truck className="w-3.5 h-3.5 text-neutral-600" /> Within 12h Fast Delivery
+                <Truck className="w-3.5 h-3.5 text-neutral-600" /> Fast Delivery
               </span>
               <span>•</span>
               <span className="flex items-center gap-1">

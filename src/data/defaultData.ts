@@ -12,7 +12,7 @@ export const DEFAULT_FEATURED_DROP: FeaturedDrop = {
 };
 
 export const DEFAULT_STORE_SETTINGS: StoreSettings = {
-  storeName: 'V-BOX',
+  storeName: 'CROWNBORN',
   tagline: 'Minimalist & Everyday Streetwear',
   city: 'Rangpur',
   whatsappNumber: '8801866068916',

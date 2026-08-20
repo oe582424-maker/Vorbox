@@ -35,8 +35,6 @@ export const FloatingWhatsAppWidget: React.FC<FloatingWhatsAppWidgetProps> = ({ 
       <a
         id="floating-whatsapp-btn"
         href={whatsappUrl}
-        target="_blank"
-        rel="noopener noreferrer"
         className="w-13 h-13 sm:w-14 sm:h-14 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center shadow-2xl hover:scale-110 active:scale-95 transition-all duration-200"
         title="Chat or Order directly on WhatsApp"
         aria-label="WhatsApp Contact"

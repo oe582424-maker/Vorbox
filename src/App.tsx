@@ -29,7 +29,7 @@ const CATEGORIES = [
 export default function App() {
   // 1. Settings State (Loaded with localStorage fallback)
   const [settings, setSettings] = useState<StoreSettings>(() => {
-    const saved = localStorage.getItem('vbox_settings') || localStorage.getItem('crownborn_settings') || localStorage.getItem('vera_settings') || localStorage.getItem('vorbox_settings');
+    const saved = localStorage.getItem('crownborn_settings') || localStorage.getItem('vbox_settings') || localStorage.getItem('vorbox_settings');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -47,7 +47,7 @@ export default function App() {
 
   // 2. Products State
   const [products, setProducts] = useState<Product[]>(() => {
-    const saved = localStorage.getItem('vbox_products') || localStorage.getItem('crownborn_products') || localStorage.getItem('vera_products') || localStorage.getItem('vorbox_products');
+    const saved = localStorage.getItem('crownborn_products') || localStorage.getItem('vbox_products') || localStorage.getItem('vorbox_products');
     if (saved) {
       try {
         return JSON.parse(saved);
@@ -61,7 +61,7 @@ export default function App() {
   // 3. User-Specific Cart State (Strictly Local Browser Storage Only - Never synced to backend)
   const [cart, setCart] = useState<CartItem[]>(() => {
     try {
-      const saved = localStorage.getItem('vbox_cart');
+      const saved = localStorage.getItem('crownborn_cart') || localStorage.getItem('vbox_cart');
       if (saved) {
         return JSON.parse(saved);
       }
@@ -73,7 +73,7 @@ export default function App() {
 
   // 4. Orders State (Real customer orders only)
   const [orders, setOrders] = useState<Order[]>(() => {
-    const saved = localStorage.getItem('vbox_orders') || localStorage.getItem('crownborn_orders') || localStorage.getItem('vera_orders') || localStorage.getItem('vorbox_orders');
+    const saved = localStorage.getItem('crownborn_orders') || localStorage.getItem('vbox_orders') || localStorage.getItem('vorbox_orders');
     if (saved) {
       try {
         return JSON.parse(saved);
@@ -101,19 +101,19 @@ export default function App() {
 
   // Sync to LocalStorage as instant local cache
   useEffect(() => {
-    localStorage.setItem('vbox_settings', JSON.stringify(settings));
+    localStorage.setItem('crownborn_settings', JSON.stringify(settings));
   }, [settings]);
 
   useEffect(() => {
-    localStorage.setItem('vbox_products', JSON.stringify(products));
+    localStorage.setItem('crownborn_products', JSON.stringify(products));
   }, [products]);
 
   useEffect(() => {
-    localStorage.setItem('vbox_cart', JSON.stringify(cart));
+    localStorage.setItem('crownborn_cart', JSON.stringify(cart));
   }, [cart]);
 
   useEffect(() => {
-    localStorage.setItem('vbox_orders', JSON.stringify(orders));
+    localStorage.setItem('crownborn_orders', JSON.stringify(orders));
   }, [orders]);
 
   // Real-time multi-device synchronization engine
@@ -283,6 +283,14 @@ export default function App() {
     setSettings(DEFAULT_STORE_SETTINGS);
     setOrders([]);
     setCart([]);
+    localStorage.removeItem('crownborn_products');
+    localStorage.removeItem('crownborn_settings');
+    localStorage.removeItem('crownborn_orders');
+    localStorage.removeItem('crownborn_cart');
+    localStorage.removeItem('vbox_products');
+    localStorage.removeItem('vbox_settings');
+    localStorage.removeItem('vbox_orders');
+    localStorage.removeItem('vbox_cart');
     localStorage.removeItem('vorbox_products');
     localStorage.removeItem('vorbox_settings');
     localStorage.removeItem('vorbox_orders');
@@ -316,7 +324,7 @@ export default function App() {
   const totalCartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
-    <div id="vorbox-app-root" className="min-h-screen min-h-[100dvh] w-full bg-neutral-50 text-neutral-900 font-sans flex flex-col selection:bg-neutral-900 selection:text-white relative">
+    <div id="crownborn-app-root" className="min-h-screen min-h-[100dvh] w-full bg-neutral-50 text-neutral-900 font-sans flex flex-col selection:bg-neutral-900 selection:text-white relative">
       {/* 1. Top Notice Announcement */}
       <TopNoticeBar settings={settings} />
 
@@ -383,6 +391,7 @@ export default function App() {
                 key={prod.id}
                 product={prod}
                 settings={settings}
+                cart={cart}
                 onOpenProductModal={(p) => setSelectedProduct(p)}
                 onQuickAddToCart={(p, sz, clr) => handleAddToCart(p, sz, clr, 1)}
                 onOrderViaWhatsApp={(p, sz, clr) => handleBuyNowCOD(p, sz, clr, 1)}
@@ -399,9 +408,9 @@ export default function App() {
                 <Truck className="w-5 h-5" />
               </div>
               <div>
-                <h4 className="font-bold text-sm sm:text-base font-mono">Fast 12h Dispatch</h4>
+                <h4 className="font-bold text-sm sm:text-base font-mono">Fast Delivery</h4>
                 <p className="text-xs text-neutral-400 mt-1">
-                  Swift doorstep delivery to your home or office within 12 hours.
+                  Swift doorstep delivery to your home or office with Fast Delivery.
                 </p>
               </div>
             </div>
@@ -447,6 +456,7 @@ export default function App() {
       <ProductModal
         product={selectedProduct}
         settings={settings}
+        cart={cart}
         onClose={() => setSelectedProduct(null)}
         onAddToCart={(p, sz, clr, qty) => handleAddToCart(p, sz, clr, qty)}
         onOpenSizeGuide={() => setIsSizeGuideOpen(true)}

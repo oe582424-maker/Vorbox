@@ -76,7 +76,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               id="admin-settings-nav-btn"
               onClick={onOpenAdmin}
               className="p-2 text-neutral-500 hover:text-neutral-900 rounded-full hover:bg-neutral-100 transition-colors"
-              title="V-box Store Manager / Admin"
+              title="CrownBorn Store Manager / Admin"
             >
               <Settings className="w-4 h-4" />
             </button>

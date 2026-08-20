@@ -24,7 +24,7 @@ export const SizeGuideModal: React.FC<SizeGuideModalProps> = ({ isOpen, onClose 
           <div className="flex items-center gap-2">
             <Ruler className="w-5 h-5 text-emerald-400" />
             <div>
-              <h2 className="text-base sm:text-lg font-black font-mono">V-BOX Sizing Guide</h2>
+              <h2 className="text-base sm:text-lg font-black font-mono">CROWNBORN Sizing Guide</h2>
               <p className="text-[11px] text-neutral-300">Standard Asian & Bangladeshi Apparel Measurements</p>
             </div>
           </div>

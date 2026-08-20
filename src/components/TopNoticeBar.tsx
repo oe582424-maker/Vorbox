@@ -17,7 +17,7 @@ export const TopNoticeBar: React.FC<TopNoticeBarProps> = ({ settings }) => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex flex-col sm:flex-row items-center justify-between gap-2">
         <div className="flex items-center gap-2 text-center sm:text-left">
           <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-medium text-[11px] border border-emerald-500/30">
-            <Truck className="w-3 h-3" /> Within 12h Fast Delivery
+            <Truck className="w-3 h-3" /> Fast Delivery
           </span>
           <span className="hidden md:inline text-neutral-400">|</span>
           <span className="truncate">{settings.bannerNotice}</span>
@@ -32,8 +32,6 @@ export const TopNoticeBar: React.FC<TopNoticeBarProps> = ({ settings }) => {
           <a
             id="top-whatsapp-link"
             href={whatsappUrl}
-            target="_blank"
-            rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 text-emerald-400 hover:text-emerald-300 font-medium transition-colors"
           >
             <MessageCircle className="w-3.5 h-3.5" />

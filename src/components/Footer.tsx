@@ -46,7 +46,7 @@ export const Footer: React.FC<FooterProps> = ({
             <ul className="space-y-2 text-xs text-neutral-400">
               <li className="flex items-center gap-2">
                 <Truck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                <span>Within 12h Fast Doorstep Delivery</span>
+                <span>Fast Doorstep Delivery</span>
               </li>
               <li className="flex items-center gap-2">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
@@ -98,8 +98,6 @@ export const Footer: React.FC<FooterProps> = ({
               <a
                 id="footer-whatsapp-btn"
                 href={whatsappUrl}
-                target="_blank"
-                rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs rounded-xl transition-all shadow-sm w-full justify-center"
               >
                 <MessageCircle className="w-4 h-4" />

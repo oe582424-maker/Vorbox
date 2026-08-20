@@ -115,17 +115,16 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       createdAt: new Date().toISOString(),
     };
 
-    // Open WhatsApp directly with the compiled order details
-    try {
-      window.open(whatsappCheckoutUrl, '_blank');
-    } catch {
-      // If popup blocker occurs, link remains accessible via direct button
-    }
+    // Update order status in app state first so confirmation modal displays
+    setIsSubmitting(false);
+    onOrderSuccess(newOrder);
 
-    setTimeout(() => {
-      setIsSubmitting(false);
-      onOrderSuccess(newOrder);
-    }, 400);
+    // Seamlessly navigate to WhatsApp without launching blank tabs or triggering popup blockers
+    try {
+      window.location.href = whatsappCheckoutUrl;
+    } catch {
+      window.open(whatsappCheckoutUrl, '_self');
+    }
   };
 
   return (
