@@ -8,7 +8,7 @@ interface ProductCardProps {
   settings: StoreSettings;
   cart?: CartItem[];
   onOpenProductModal: (product: Product) => void;
-  onQuickAddToCart: (product: Product, size: 'S' | 'M' | 'L' | 'XL' | 'XXL', color: { name: string; hex: string }) => void;
+  onOpenAddToBag: (product: Product, size?: 'S' | 'M' | 'L' | 'XL' | 'XXL', color?: { name: string; hex: string }) => void;
   onRemoveFromCart?: (comboId: string) => void;
   onPlaceOrder: (product: Product, size?: 'S' | 'M' | 'L' | 'XL' | 'XXL', color?: { name: string; hex: string }) => void;
 }
@@ -18,7 +18,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   settings,
   cart = [],
   onOpenProductModal,
-  onQuickAddToCart,
+  onOpenAddToBag,
   onRemoveFromCart,
   onPlaceOrder,
 }) => {
@@ -26,20 +26,20 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   const [selectedColor, setSelectedColor] = useState(product.colors[0] || { name: 'Standard', hex: '#111' });
 
   // Persistent in-bag verification for the specific size and color
-  const isInCart = cart.some(
+  const matchingCartItem = cart.find(
     (item) =>
       item.productId === product.id &&
       item.selectedSize === selectedSize &&
       item.selectedColor.name === selectedColor.name
   );
+  const isInCart = !!matchingCartItem;
 
-  const handleQuickAdd = (e: React.MouseEvent) => {
+  const handleAddOrToggleBag = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const comboId = `${product.id}-${selectedSize}-${selectedColor.name}`;
-    if (isInCart && onRemoveFromCart) {
-      onRemoveFromCart(comboId);
+    if (isInCart && onRemoveFromCart && matchingCartItem) {
+      onRemoveFromCart(matchingCartItem.id);
     } else {
-      onQuickAddToCart(product, selectedSize, selectedColor);
+      onOpenAddToBag(product, selectedSize, selectedColor);
     }
   };
 
@@ -175,7 +175,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           <button
             id={`quick-add-${product.id}`}
             type="button"
-            onClick={handleQuickAdd}
+            onClick={handleAddOrToggleBag}
             className={`py-2 px-2.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer ${
               isInCart
                 ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs'

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, ShieldCheck, MapPin, Phone, User, FileText, Truck, ArrowRight, ArrowLeft, MessageCircle, Check, Minus, Plus } from 'lucide-react';
+import { X, ShieldCheck, MapPin, Phone, User, FileText, Truck, ArrowRight, ArrowLeft, MessageCircle, Check, Minus, Plus, ShoppingBag } from 'lucide-react';
 import { Product, StoreSettings, Order, CartItem } from '../types';
 import { formatBDT, generateOrderNumber, createCartWhatsAppUrl } from '../utils/helpers';
 
@@ -7,12 +7,14 @@ interface QuickOrderModalProps {
   isOpen: boolean;
   onClose: () => void;
   product: Product | null;
+  mode?: 'place_order' | 'add_to_bag';
   initialSize?: 'S' | 'M' | 'L' | 'XL' | 'XXL';
   initialColor?: { name: string; hex: string };
   initialQuantity?: number;
   initialStep?: 1 | 2;
   settings: StoreSettings;
   onOrderSuccess: (order: Order) => void;
+  onAddToCart?: (product: Product, size: 'S' | 'M' | 'L' | 'XL' | 'XXL', color: { name: string; hex: string }, quantity: number) => void;
   onOpenSizeGuide?: () => void;
 }
 
@@ -20,17 +22,20 @@ export const QuickOrderModal: React.FC<QuickOrderModalProps> = ({
   isOpen,
   onClose,
   product,
+  mode = 'place_order',
   initialSize,
   initialColor,
   initialQuantity = 1,
   initialStep = 1,
   settings,
   onOrderSuccess,
+  onAddToCart,
   onOpenSizeGuide,
 }) => {
   if (!isOpen || !product) return null;
 
-  const [step, setStep] = useState<1 | 2>(initialStep);
+  const isAddToBagMode = mode === 'add_to_bag';
+  const [step, setStep] = useState<1 | 2>(isAddToBagMode ? 1 : initialStep);
   const [selectedSize, setSelectedSize] = useState<'S' | 'M' | 'L' | 'XL' | 'XXL'>(
     initialSize || product.sizes[0] || 'M'
   );
@@ -56,11 +61,11 @@ export const QuickOrderModal: React.FC<QuickOrderModalProps> = ({
       setSelectedSize(initialSize || product.sizes[0] || 'M');
       setSelectedColor(initialColor || product.colors[0] || { name: 'Standard', hex: '#111' });
       setQuantity(initialQuantity || 1);
-      setStep(initialStep || 1);
+      setStep(isAddToBagMode ? 1 : initialStep || 1);
       setErrorMsg('');
       setIsSubmitting(false);
     }
-  }, [product, initialSize, initialColor, initialQuantity, initialStep]);
+  }, [product, initialSize, initialColor, initialQuantity, initialStep, isAddToBagMode]);
 
   const unitPrice = product.price;
   const subtotal = unitPrice * quantity;
@@ -87,6 +92,15 @@ export const QuickOrderModal: React.FC<QuickOrderModalProps> = ({
     e.preventDefault();
     setErrorMsg('');
     setStep(2);
+  };
+
+  const handleConfirmAddToBag = (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg('');
+    if (onAddToCart) {
+      onAddToCart(product, selectedSize, selectedColor, quantity);
+    }
+    onClose();
   };
 
   const handleConfirmOrder = (e: React.FormEvent) => {
@@ -185,13 +199,25 @@ export const QuickOrderModal: React.FC<QuickOrderModalProps> = ({
         {/* Header */}
         <div className="p-4 sm:p-5 border-b border-neutral-200 flex items-center justify-between bg-neutral-900 text-white shrink-0">
           <div className="flex items-center gap-2.5">
-            <ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0" />
+            {isAddToBagMode ? (
+              <ShoppingBag className="w-5 h-5 text-emerald-400 shrink-0" />
+            ) : (
+              <ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0" />
+            )}
             <div>
               <h2 className="text-sm sm:text-base font-black font-mono tracking-tight">
-                {step === 1 ? 'Quick Order — Select Variant' : 'Quick Order — Delivery Info'}
+                {isAddToBagMode
+                  ? 'Select Variant — Add to Bag'
+                  : step === 1
+                  ? 'Quick Order — Select Variant'
+                  : 'Quick Order — Delivery Info'}
               </h2>
               <p className="text-[11px] text-neutral-300">
-                {step === 1 ? 'Step 1 of 2: Choose color, size & quantity' : 'Step 2 of 2: Cash on Delivery details'}
+                {isAddToBagMode
+                  ? 'Choose color, size & quantity for your bag'
+                  : step === 1
+                  ? 'Step 1 of 2: Choose color, size & quantity'
+                  : 'Step 2 of 2: Cash on Delivery details'}
               </p>
             </div>
           </div>
@@ -206,22 +232,24 @@ export const QuickOrderModal: React.FC<QuickOrderModalProps> = ({
           </button>
         </div>
 
-        {/* Step Indicator Bar */}
-        <div className="flex border-b border-neutral-100 bg-neutral-50 px-4 py-2 text-xs font-semibold text-neutral-600 gap-4 shrink-0">
-          <div className={`flex items-center gap-1.5 ${step === 1 ? 'text-neutral-900 font-bold' : 'text-neutral-500'}`}>
-            <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] ${step === 1 ? 'bg-neutral-900 text-white' : 'bg-neutral-200 text-neutral-700'}`}>
-              1
-            </span>
-            <span>Options</span>
+        {/* Step Indicator Bar (only shown in place_order flow) */}
+        {!isAddToBagMode && (
+          <div className="flex border-b border-neutral-100 bg-neutral-50 px-4 py-2 text-xs font-semibold text-neutral-600 gap-4 shrink-0">
+            <div className={`flex items-center gap-1.5 ${step === 1 ? 'text-neutral-900 font-bold' : 'text-neutral-500'}`}>
+              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] ${step === 1 ? 'bg-neutral-900 text-white' : 'bg-neutral-200 text-neutral-700'}`}>
+                1
+              </span>
+              <span>Options</span>
+            </div>
+            <span className="text-neutral-300">→</span>
+            <div className={`flex items-center gap-1.5 ${step === 2 ? 'text-neutral-900 font-bold' : 'text-neutral-400'}`}>
+              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] ${step === 2 ? 'bg-neutral-900 text-white' : 'bg-neutral-200 text-neutral-500'}`}>
+                2
+              </span>
+              <span>Delivery & WhatsApp</span>
+            </div>
           </div>
-          <span className="text-neutral-300">→</span>
-          <div className={`flex items-center gap-1.5 ${step === 2 ? 'text-neutral-900 font-bold' : 'text-neutral-400'}`}>
-            <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] ${step === 2 ? 'bg-neutral-900 text-white' : 'bg-neutral-200 text-neutral-500'}`}>
-              2
-            </span>
-            <span>Delivery & WhatsApp</span>
-          </div>
-        </div>
+        )}
 
         {/* Scrollable Modal Content */}
         <div className="p-4 sm:p-6 overflow-y-auto flex-1">
@@ -231,9 +259,9 @@ export const QuickOrderModal: React.FC<QuickOrderModalProps> = ({
             </div>
           )}
 
-          {/* STEP 1: VARIANT SELECTION */}
+          {/* STEP 1 / VARIANT SELECTION (Used for both Add to Bag and Place Order Step 1) */}
           {step === 1 && (
-            <form onSubmit={handleProceedToStep2} className="space-y-5">
+            <form onSubmit={isAddToBagMode ? handleConfirmAddToBag : handleProceedToStep2} className="space-y-5">
               {/* Product Preview Card */}
               <div className="flex items-center gap-3.5 p-3 bg-neutral-50 border border-neutral-200 rounded-xl">
                 <img
@@ -368,22 +396,33 @@ export const QuickOrderModal: React.FC<QuickOrderModalProps> = ({
                 </div>
               </div>
 
-              {/* Primary CTA Button for Step 1 */}
+              {/* Primary CTA Button */}
               <div className="pt-2">
-                <button
-                  id="proceed-to-delivery-info-btn"
-                  type="submit"
-                  className="w-full py-4 px-4 bg-neutral-950 hover:bg-neutral-900 active:bg-black text-white font-bold text-sm sm:text-base rounded-xl sm:rounded-2xl transition-all active:scale-98 shadow-lg flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <span>Proceed to Delivery Info</span>
-                  <ArrowRight className="w-4 h-4 text-emerald-400" />
-                </button>
+                {isAddToBagMode ? (
+                  <button
+                    id="confirm-add-to-bag-btn"
+                    type="submit"
+                    className="w-full py-4 px-4 bg-neutral-950 hover:bg-neutral-900 active:bg-black text-white font-bold text-sm sm:text-base rounded-xl sm:rounded-2xl transition-all active:scale-98 shadow-lg flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <ShoppingBag className="w-5 h-5 text-emerald-400" />
+                    <span>Confirm & Add to Bag ({formatBDT(subtotal)})</span>
+                  </button>
+                ) : (
+                  <button
+                    id="proceed-to-delivery-info-btn"
+                    type="submit"
+                    className="w-full py-4 px-4 bg-neutral-950 hover:bg-neutral-900 active:bg-black text-white font-bold text-sm sm:text-base rounded-xl sm:rounded-2xl transition-all active:scale-98 shadow-lg flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <span>Proceed to Delivery Info</span>
+                    <ArrowRight className="w-4 h-4 text-emerald-400" />
+                  </button>
+                )}
               </div>
             </form>
           )}
 
-          {/* STEP 2: DELIVERY ADDRESS & WHATSAPP REDIRECTION */}
-          {step === 2 && (
+          {/* STEP 2: DELIVERY ADDRESS & WHATSAPP REDIRECTION (For Place Order) */}
+          {step === 2 && !isAddToBagMode && (
             <form onSubmit={handleConfirmOrder} className="space-y-4">
               {/* Back to Step 1 link */}
               <button

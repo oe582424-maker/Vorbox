@@ -84,6 +84,7 @@ export default function App() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [quickOrderProduct, setQuickOrderProduct] = useState<Product | null>(null);
+  const [quickOrderMode, setQuickOrderMode] = useState<'place_order' | 'add_to_bag'>('place_order');
   const [quickOrderInitialSize, setQuickOrderInitialSize] = useState<'S' | 'M' | 'L' | 'XL' | 'XXL' | undefined>();
   const [quickOrderInitialColor, setQuickOrderInitialColor] = useState<{ name: string; hex: string } | undefined>();
   const [quickOrderInitialQuantity, setQuickOrderInitialQuantity] = useState<number>(1);
@@ -215,12 +216,27 @@ export default function App() {
     setCart([]);
   };
 
-  // Open Quick Order from ProductCard "Place Order" (Step 1: Choose Variant)
+  // Open Variant Modal for "Add to Bag"
+  const handleOpenAddToBagModal = (
+    product: Product,
+    size?: 'S' | 'M' | 'L' | 'XL' | 'XXL',
+    color?: { name: string; hex: string }
+  ) => {
+    setQuickOrderMode('add_to_bag');
+    setQuickOrderProduct(product);
+    setQuickOrderInitialSize(size || product.sizes[0] || 'M');
+    setQuickOrderInitialColor(color || product.colors[0] || { name: 'Standard', hex: '#111' });
+    setQuickOrderInitialQuantity(1);
+    setQuickOrderInitialStep(1);
+  };
+
+  // Open Quick Order from ProductCard "Place Order" (Step 1: Choose Variant -> Step 2 Delivery)
   const handleOpenQuickOrder = (
     product: Product,
     size?: 'S' | 'M' | 'L' | 'XL' | 'XXL',
     color?: { name: string; hex: string }
   ) => {
+    setQuickOrderMode('place_order');
     setQuickOrderProduct(product);
     setQuickOrderInitialSize(size || product.sizes[0] || 'M');
     setQuickOrderInitialColor(color || product.colors[0] || { name: 'Standard', hex: '#111' });
@@ -236,6 +252,7 @@ export default function App() {
     quantity: number
   ) => {
     setSelectedProduct(null);
+    setQuickOrderMode('place_order');
     setQuickOrderProduct(product);
     setQuickOrderInitialSize(size);
     setQuickOrderInitialColor(color);
@@ -346,7 +363,7 @@ export default function App() {
   const totalCartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
-    <div id="crownborn-app-root" className="min-h-screen min-h-[100dvh] w-full bg-neutral-50 text-neutral-900 font-sans flex flex-col selection:bg-neutral-900 selection:text-white relative">
+    <div id="crownborn-app-root" className="min-h-screen min-h-[100dvh] w-full m-0 p-0 overflow-x-hidden bg-neutral-50 text-neutral-900 font-sans flex flex-col selection:bg-neutral-900 selection:text-white relative">
       {/* 1. Top Notice Announcement */}
       <TopNoticeBar settings={settings} />
 
@@ -415,7 +432,7 @@ export default function App() {
                 settings={settings}
                 cart={cart}
                 onOpenProductModal={(p) => setSelectedProduct(p)}
-                onQuickAddToCart={(p, sz, clr) => handleAddToCart(p, sz, clr, 1)}
+                onOpenAddToBag={(p, sz, clr) => handleOpenAddToBagModal(p, sz, clr)}
                 onRemoveFromCart={handleRemoveFromCart}
                 onPlaceOrder={(p, sz, clr) => handleOpenQuickOrder(p, sz, clr)}
               />
@@ -516,12 +533,14 @@ export default function App() {
         isOpen={!!quickOrderProduct}
         onClose={() => setQuickOrderProduct(null)}
         product={quickOrderProduct}
+        mode={quickOrderMode}
         initialSize={quickOrderInitialSize}
         initialColor={quickOrderInitialColor}
         initialQuantity={quickOrderInitialQuantity}
         initialStep={quickOrderInitialStep}
         settings={settings}
         onOrderSuccess={handleQuickOrderSuccess}
+        onAddToCart={(p, sz, clr, qty) => handleAddToCart(p, sz, clr, qty)}
         onOpenSizeGuide={() => setIsSizeGuideOpen(true)}
       />
 
