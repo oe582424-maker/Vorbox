@@ -23,17 +23,17 @@ import {
   Upload,
   Layers,
   Sparkles,
-  ExternalLink,
   Search,
   Check,
   AlertCircle,
-  DollarSign,
   TrendingUp,
-  Clock,
-  ShieldCheck,
+  Tag,
+  Sliders,
+  ArrowUpDown,
+  FileSpreadsheet,
 } from 'lucide-react';
-import { Order, Product, StoreSettings, FeaturedDrop } from '../types';
-import { DEFAULT_FEATURED_DROP } from '../data/defaultData';
+import { Order, Product, StoreSettings, FeaturedDrop, HeroSettings } from '../types';
+import { DEFAULT_FEATURED_DROP, DEFAULT_CATEGORIES } from '../data/defaultData';
 import { formatBDT, cleanPhoneForWhatsApp } from '../utils/helpers';
 
 interface AdminModalProps {
@@ -69,58 +69,83 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 
   // Authentication State
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    return sessionStorage.getItem('vorbox_admin_auth') === 'true';
+    return (
+      sessionStorage.getItem('crownborn_admin_auth') === 'true' ||
+      sessionStorage.getItem('vorbox_admin_auth') === 'true'
+    );
   });
   const [passwordInput, setPasswordInput] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [authError, setAuthError] = useState('');
 
-  // Tab & Filter States
-  const [activeTab, setActiveTab] = useState<'orders' | 'products' | 'featureddrop' | 'settings'>('orders');
+  // Active Admin Tab
+  const [activeTab, setActiveTab] = useState<'orders' | 'products' | 'categories' | 'hero' | 'settings'>('orders');
+
+  // Orders State & Filters
   const [orderFilter, setOrderFilter] = useState<'all' | Order['status']>('all');
   const [orderSearchQuery, setOrderSearchQuery] = useState('');
 
-  // Store settings form state
+  // Store Settings Form State
   const [formSettings, setFormSettings] = useState<StoreSettings>(settings);
   const [savedSettingsNotice, setSavedSettingsNotice] = useState(false);
 
-  // Featured Drop form state
+  // Dynamic Categories Management State
+  const activeCategories = formSettings.categories || DEFAULT_CATEGORIES;
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [editingCategoryIndex, setEditingCategoryIndex] = useState<number | null>(null);
+  const [editingCategoryValue, setEditingCategoryValue] = useState('');
+
+  // Hero & Banner Settings Form State
+  const [heroForm, setHeroForm] = useState<HeroSettings>(() => {
+    return (
+      settings.heroSettings || {
+        enabled: settings.showHeroBanner ?? true,
+        badgeText: 'Modern Minimalist Streetwear & Essentials',
+        title: 'Minimalist Wear.',
+        subtitle: 'Delivered directly to your doorstep with Fast Delivery.',
+        description:
+          'Premium 100% combed cotton t-shirts, refined polos, signature panjabis, and everyday street fits. Zero hassle ordering with Cash on Delivery and instant 1-Click WhatsApp confirmation.',
+        showDropCard: true,
+      }
+    );
+  });
   const [featuredDropForm, setFeaturedDropForm] = useState<FeaturedDrop>(() => {
     return settings.featuredDrop || DEFAULT_FEATURED_DROP;
   });
-  const [featuredDropImageUrlInput, setFeaturedDropImageUrlInput] = useState('');
-  const [showDeleteDropConfirm, setShowDeleteDropConfirm] = useState(false);
-  const [savedDropNotice, setSavedDropNotice] = useState(false);
+  const [dropImageUrlInput, setDropImageUrlInput] = useState('');
+  const [savedHeroNotice, setSavedHeroNotice] = useState(false);
 
-  // Admin password change state
+  // Password Change Form State
   const [currentPasswordConfirm, setCurrentPasswordConfirm] = useState('');
   const [newAdminPassword, setNewAdminPassword] = useState('');
   const [passwordChangeSuccess, setPasswordChangeSuccess] = useState(false);
   const [passwordChangeError, setPasswordChangeError] = useState('');
 
-  // Product form modal state
+  // Product Add / Edit Modal State
   const [isAddingProduct, setIsAddingProduct] = useState(false);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [productToDeleteId, setProductToDeleteId] = useState<string | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+
   const [newFeatureInput, setNewFeatureInput] = useState('');
   const [newImageUrlInput, setNewImageUrlInput] = useState('');
   const [newColorName, setNewColorName] = useState('');
   const [newColorHex, setNewColorHex] = useState('#111111');
+  const [customCategoryInput, setCustomCategoryInput] = useState('');
 
   const [productForm, setProductForm] = useState<Partial<Product>>({
     name: '',
-    category: 'T-Shirts',
+    category: activeCategories[0] || 'T-Shirts',
     price: 550,
     originalPrice: 700,
     description: '',
     fabric: '100% Combed Cotton',
     gsm: '220 GSM',
     images: ['https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=1000&q=80'],
-    sizes: ['M', 'L', 'XL'],
+    sizes: ['M', 'L', 'XL', 'XXL'],
     colors: [
       { name: 'Onyx Black', hex: '#111111' },
-      { name: 'Pure White', hex: '#fafaf9' },
+      { name: 'Chalk White', hex: '#fafaf9' },
     ],
     inStock: true,
     featured: true,
@@ -130,7 +155,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 
   const correctPassword = settings.adminPassword || 'akm125@#155Ab12*';
 
-  // Handle Admin Login
+  // -------------------- AUTHENTICATION HANDLERS --------------------
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (passwordInput === correctPassword) {
@@ -138,19 +163,18 @@ export const AdminModal: React.FC<AdminModalProps> = ({
       sessionStorage.setItem('crownborn_admin_auth', 'true');
       setAuthError('');
     } else {
-      setAuthError('Incorrect admin password. Please check and try again.');
+      setAuthError('Incorrect admin password. Please try again.');
     }
   };
 
   const handleLogout = () => {
     setIsAuthenticated(false);
     sessionStorage.removeItem('crownborn_admin_auth');
-    sessionStorage.removeItem('vbox_admin_auth');
     sessionStorage.removeItem('vorbox_admin_auth');
     setPasswordInput('');
   };
 
-  // Filtered Orders
+  // -------------------- ORDERS FILTERING & EXPORT --------------------
   const filteredOrders = orders.filter((o) => {
     const matchesStatus = orderFilter === 'all' || o.status === orderFilter;
     const matchesSearch =
@@ -158,87 +182,140 @@ export const AdminModal: React.FC<AdminModalProps> = ({
       o.orderNumber.toLowerCase().includes(orderSearchQuery.toLowerCase()) ||
       o.customerName.toLowerCase().includes(orderSearchQuery.toLowerCase()) ||
       o.customerPhone.includes(orderSearchQuery) ||
-      o.deliveryArea.toLowerCase().includes(orderSearchQuery.toLowerCase());
+      o.deliveryArea.toLowerCase().includes(orderSearchQuery.toLowerCase()) ||
+      o.deliveryAddress.toLowerCase().includes(orderSearchQuery.toLowerCase());
     return matchesStatus && matchesSearch;
   });
 
-  const handleSaveSettings = (e: React.FormEvent) => {
-    e.preventDefault();
-    onUpdateSettings(formSettings);
-    setSavedSettingsNotice(true);
-    setTimeout(() => setSavedSettingsNotice(false), 2500);
+  const totalRevenue = orders.reduce((sum, ord) => sum + (ord.status !== 'Cancelled' ? ord.totalAmount : 0), 0);
+  const pendingCount = orders.filter((o) => o.status === 'Pending').length;
+  const deliveredCount = orders.filter((o) => o.status === 'Delivered').length;
+
+  const exportOrdersCSV = () => {
+    const headers = ['OrderID', 'CustomerName', 'Phone', 'Area', 'Address', 'Items', 'TotalAmount', 'Status', 'CreatedAt'];
+    const rows = orders.map((o) => [
+      o.orderNumber,
+      `"${o.customerName.replace(/"/g, '""')}"`,
+      o.customerPhone,
+      `"${o.deliveryArea.replace(/"/g, '""')}"`,
+      `"${o.deliveryAddress.replace(/"/g, '""')}"`,
+      `"${o.items.map((i) => `${i.productName} (${i.size}, ${i.color}, x${i.quantity})`).join('; ')}"`,
+      o.totalAmount,
+      o.status,
+      o.createdAt,
+    ]);
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `crownborn_orders_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
-  const handlePasswordChangeSubmit = (e: React.FormEvent) => {
+  // -------------------- CATEGORY MANAGEMENT HANDLERS --------------------
+  const handleAddCategory = (e: React.FormEvent) => {
     e.preventDefault();
-    setPasswordChangeError('');
-    setPasswordChangeSuccess(false);
-
-    if (currentPasswordConfirm !== correctPassword) {
-      setPasswordChangeError('Current password is wrong.');
+    const trimmed = newCategoryName.trim();
+    if (!trimmed) return;
+    if (activeCategories.some((c) => c.toLowerCase() === trimmed.toLowerCase())) {
+      alert('This category already exists.');
       return;
     }
-    if (!newAdminPassword || newAdminPassword.length < 6) {
-      setPasswordChangeError('New password must be at least 6 characters long.');
-      return;
-    }
-
-    const updated = {
-      ...formSettings,
-      adminPassword: newAdminPassword,
-    };
-    setFormSettings(updated);
-    onUpdateSettings(updated);
-    setCurrentPasswordConfirm('');
-    setNewAdminPassword('');
-    setPasswordChangeSuccess(true);
-    setTimeout(() => setPasswordChangeSuccess(false), 3000);
+    const updated = [...activeCategories, trimmed];
+    const newSettings = { ...formSettings, categories: updated };
+    setFormSettings(newSettings);
+    onUpdateSettings(newSettings);
+    setNewCategoryName('');
   };
 
-  // Featured Drop Handlers
-  const handleSaveFeaturedDrop = (e?: React.FormEvent) => {
+  const handleSaveEditedCategory = (index: number) => {
+    const trimmed = editingCategoryValue.trim();
+    if (!trimmed) {
+      setEditingCategoryIndex(null);
+      return;
+    }
+    const oldName = activeCategories[index];
+    const updated = [...activeCategories];
+    updated[index] = trimmed;
+    const newSettings = { ...formSettings, categories: updated };
+    setFormSettings(newSettings);
+    onUpdateSettings(newSettings);
+
+    // Also update any products currently assigned to oldName
+    products.forEach((p) => {
+      if (p.category === oldName) {
+        onUpdateProduct({ ...p, category: trimmed });
+      }
+    });
+
+    setEditingCategoryIndex(null);
+    setEditingCategoryValue('');
+  };
+
+  const handleDeleteCategory = (catName: string) => {
+    const assignedProductsCount = products.filter((p) => p.category === catName).length;
+    if (assignedProductsCount > 0) {
+      const confirmDelete = window.confirm(
+        `There are ${assignedProductsCount} product(s) in category "${catName}". Deleting this category will reassign them to "${activeCategories[0] || 'General'}". Continue?`
+      );
+      if (!confirmDelete) return;
+
+      const fallbackCat = activeCategories.find((c) => c !== catName) || 'T-Shirts';
+      products.forEach((p) => {
+        if (p.category === catName) {
+          onUpdateProduct({ ...p, category: fallbackCat });
+        }
+      });
+    }
+
+    const updated = activeCategories.filter((c) => c !== catName);
+    const newSettings = { ...formSettings, categories: updated.length ? updated : ['T-Shirts'] };
+    setFormSettings(newSettings);
+    onUpdateSettings(newSettings);
+  };
+
+  const handleResetCategories = () => {
+    const updated = DEFAULT_CATEGORIES;
+    const newSettings = { ...formSettings, categories: updated };
+    setFormSettings(newSettings);
+    onUpdateSettings(newSettings);
+  };
+
+  // -------------------- HERO & BANNER HANDLERS --------------------
+  const handleSaveHeroAndDrop = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     const updatedSettings: StoreSettings = {
       ...formSettings,
+      showHeroBanner: heroForm.enabled,
+      heroSettings: heroForm,
       featuredDrop: featuredDropForm,
     };
     setFormSettings(updatedSettings);
     onUpdateSettings(updatedSettings);
-    setSavedDropNotice(true);
-    setTimeout(() => setSavedDropNotice(false), 2500);
+    setSavedHeroNotice(true);
+    setTimeout(() => setSavedHeroNotice(false), 2500);
   };
 
-  const handleDeleteFeaturedDrop = () => {
-    const updatedDrop: FeaturedDrop = {
-      ...featuredDropForm,
-      enabled: false,
+  const handleFeaturedDropFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (loadEvt) => {
+      const result = loadEvt.target?.result as string;
+      if (result) {
+        setFeaturedDropForm((prev) => ({ ...prev, image: result, enabled: true }));
+      }
     };
-    setFeaturedDropForm(updatedDrop);
-    const updatedSettings: StoreSettings = {
-      ...formSettings,
-      featuredDrop: updatedDrop,
-    };
-    setFormSettings(updatedSettings);
-    onUpdateSettings(updatedSettings);
-    setShowDeleteDropConfirm(false);
-    setSavedDropNotice(true);
-    setTimeout(() => setSavedDropNotice(false), 2500);
+    reader.readAsDataURL(file);
+    e.target.value = '';
   };
 
-  const handleEnableFeaturedDrop = () => {
-    const updatedDrop: FeaturedDrop = {
-      ...featuredDropForm,
-      enabled: true,
-    };
-    setFeaturedDropForm(updatedDrop);
-    const updatedSettings: StoreSettings = {
-      ...formSettings,
-      featuredDrop: updatedDrop,
-    };
-    setFormSettings(updatedSettings);
-    onUpdateSettings(updatedSettings);
-    setSavedDropNotice(true);
-    setTimeout(() => setSavedDropNotice(false), 2500);
+  const handleAddDropImageUrl = () => {
+    if (!dropImageUrlInput.trim()) return;
+    setFeaturedDropForm((prev) => ({ ...prev, image: dropImageUrlInput.trim(), enabled: true }));
+    setDropImageUrlInput('');
   };
 
   const handleSelectProductForDrop = (prodId: string) => {
@@ -257,27 +334,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     }));
   };
 
-  const handleFeaturedDropImageFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (loadEvt) => {
-      const result = loadEvt.target?.result as string;
-      if (result) {
-        setFeaturedDropForm((prev) => ({ ...prev, image: result }));
-      }
-    };
-    reader.readAsDataURL(file);
-    e.target.value = '';
-  };
-
-  const handleAddFeaturedDropImageUrl = () => {
-    if (!featuredDropImageUrlInput.trim()) return;
-    setFeaturedDropForm((prev) => ({ ...prev, image: featuredDropImageUrlInput.trim() }));
-    setFeaturedDropImageUrlInput('');
-  };
-
-  // Product Spec & Pic Helpers
+  // -------------------- PRODUCT SPECS & PIC HANDLERS --------------------
   const handleAddFeature = () => {
     if (!newFeatureInput.trim()) return;
     setProductForm({
@@ -317,7 +374,6 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     const reader = new FileReader();
     reader.onload = (event) => {
       if (typeof event.target?.result === 'string') {
@@ -333,7 +389,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   const handleToggleSize = (size: 'S' | 'M' | 'L' | 'XL' | 'XXL') => {
     const currentSizes = productForm.sizes || ['M', 'L', 'XL'];
     if (currentSizes.includes(size)) {
-      if (currentSizes.length === 1) return; // keep at least one size
+      if (currentSizes.length === 1) return;
       setProductForm({ ...productForm, sizes: currentSizes.filter((s) => s !== size) });
     } else {
       setProductForm({ ...productForm, sizes: [...currentSizes, size] });
@@ -353,7 +409,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 
   const handleRemoveColor = (index: number) => {
     const currentColors = productForm.colors || [];
-    if (currentColors.length === 1) return; // keep at least 1
+    if (currentColors.length === 1) return;
     setProductForm({
       ...productForm,
       colors: currentColors.filter((_, i) => i !== index),
@@ -372,18 +428,18 @@ export const AdminModal: React.FC<AdminModalProps> = ({
       setEditingProductId(null);
     } else {
       const newProd: Product = {
-        id: `vb-${Date.now().toString().slice(-5)}`,
+        id: `cb-${Date.now().toString().slice(-5)}`,
         name: productForm.name || 'New Clothing Item',
-        category: productForm.category || 'T-Shirts',
+        category: productForm.category || activeCategories[0] || 'T-Shirts',
         price: Number(productForm.price) || 500,
         originalPrice: productForm.originalPrice ? Number(productForm.originalPrice) : undefined,
-        description: productForm.description || `Premium minimalist wear tailored for everyday comfort in ${settings.city}.`,
+        description: productForm.description || `Premium minimalist streetwear crafted for everyday comfort in ${settings.city}.`,
         features: productForm.features?.length ? productForm.features : ['100% Combed Cotton', 'Pre-shrunk', 'Regular fit'],
         fabric: productForm.fabric || '100% Combed Cotton',
         gsm: productForm.gsm || '220 GSM',
         images: productForm.images?.length ? productForm.images : ['https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=1000&q=80'],
-        sizes: productForm.sizes?.length ? productForm.sizes : ['M', 'L', 'XL'],
-        colors: productForm.colors?.length ? productForm.colors : [{ name: 'Black', hex: '#111' }],
+        sizes: productForm.sizes?.length ? productForm.sizes : ['M', 'L', 'XL', 'XXL'],
+        colors: productForm.colors?.length ? productForm.colors : [{ name: 'Onyx Black', hex: '#111' }],
         inStock: productForm.inStock ?? true,
         featured: productForm.featured ?? false,
         tag: productForm.tag,
@@ -399,27 +455,38 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     setIsAddingProduct(true);
   };
 
-  const exportOrdersCSV = () => {
-    const headers = ['OrderID', 'CustomerName', 'Phone', 'Area', 'Address', 'Items', 'TotalAmount', 'Status', 'CreatedAt'];
-    const rows = orders.map((o) => [
-      o.orderNumber,
-      `"${o.customerName.replace(/"/g, '""')}"`,
-      o.customerPhone,
-      `"${o.deliveryArea.replace(/"/g, '""')}"`,
-      `"${o.deliveryAddress.replace(/"/g, '""')}"`,
-      `"${o.items.map((i) => `${i.productName} (${i.size}, ${i.color}, x${i.quantity})`).join('; ')}"`,
-      o.totalAmount,
-      o.status,
-      o.createdAt,
-    ]);
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `crownborn_orders_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  // -------------------- SETTINGS & PASSWORD HANDLERS --------------------
+  const handleSaveSettings = (e: React.FormEvent) => {
+    e.preventDefault();
+    onUpdateSettings(formSettings);
+    setSavedSettingsNotice(true);
+    setTimeout(() => setSavedSettingsNotice(false), 2500);
+  };
+
+  const handlePasswordChangeSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordChangeError('');
+    setPasswordChangeSuccess(false);
+
+    if (currentPasswordConfirm !== correctPassword) {
+      setPasswordChangeError('Current password is incorrect.');
+      return;
+    }
+    if (!newAdminPassword || newAdminPassword.length < 6) {
+      setPasswordChangeError('New password must be at least 6 characters long.');
+      return;
+    }
+
+    const updated = {
+      ...formSettings,
+      adminPassword: newAdminPassword,
+    };
+    setFormSettings(updated);
+    onUpdateSettings(updated);
+    setCurrentPasswordConfirm('');
+    setNewAdminPassword('');
+    setPasswordChangeSuccess(true);
+    setTimeout(() => setPasswordChangeSuccess(false), 3000);
   };
 
   const testWhatsAppUrl = `https://wa.me/${cleanPhoneForWhatsApp(formSettings.whatsappNumber)}?text=${encodeURIComponent(
@@ -427,21 +494,25 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   )}`;
 
   return (
-    <div id="admin-modal-backdrop" className="fixed inset-0 z-50 bg-neutral-950/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto" onClick={onClose}>
+    <div
+      id="admin-modal-backdrop"
+      className="fixed inset-0 z-50 bg-neutral-950/80 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto"
+      onClick={onClose}
+    >
       <div
         id="admin-modal-card"
         onClick={(e) => e.stopPropagation()}
-        className="bg-white w-full max-w-4xl rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden my-auto max-h-[92vh] flex flex-col relative"
+        className="bg-white w-full max-w-5xl rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden my-auto max-h-[94vh] flex flex-col relative"
       >
         {/* Header */}
         <div className="p-4 sm:p-5 border-b border-neutral-800 flex items-center justify-between bg-neutral-950 text-white">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-center text-emerald-400">
+            <div className="w-9 h-9 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-center text-emerald-400">
               {isAuthenticated ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-base sm:text-lg font-black font-mono tracking-tight">{settings.storeName} Merchant Portal</h2>
+                <h2 className="text-base sm:text-lg font-black font-mono tracking-tight">{settings.storeName} Admin Portal</h2>
                 {isAuthenticated && (
                   <>
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
@@ -449,14 +520,14 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                     </span>
                     <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono text-emerald-300 bg-neutral-900 border border-emerald-500/40">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                      <span>Live Multi-Device Sync</span>
+                      <span>Live Sync Active</span>
                     </span>
                   </>
                 )}
               </div>
               <p className="text-[11px] text-neutral-400">
                 {isAuthenticated
-                  ? `Control products, pictures, specs, orders & WhatsApp number for ${settings.city}`
+                  ? `Control products, orders, WhatsApp routing, categories, and hero banner for ${settings.city}`
                   : 'Enter password to access merchant controls & settings'}
               </p>
             </div>
@@ -467,11 +538,11 @@ export const AdminModal: React.FC<AdminModalProps> = ({
               <button
                 type="button"
                 onClick={handleLogout}
-                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-900 hover:bg-neutral-800 text-neutral-300 text-xs font-semibold border border-neutral-700 transition-colors"
+                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-900 hover:bg-neutral-800 text-neutral-300 text-xs font-semibold border border-neutral-700 transition-colors cursor-pointer"
                 title="Lock admin session"
               >
                 <Lock className="w-3.5 h-3.5" />
-                <span>Lock / Sign Out</span>
+                <span>Lock Session</span>
               </button>
             )}
 
@@ -479,14 +550,14 @@ export const AdminModal: React.FC<AdminModalProps> = ({
               id="close-admin-modal-btn"
               type="button"
               onClick={onClose}
-              className="p-1.5 text-neutral-400 hover:text-white rounded-full hover:bg-neutral-800 transition-colors"
+              className="p-1.5 text-neutral-400 hover:text-white rounded-full hover:bg-neutral-800 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
         </div>
 
-        {/* -------------------- LOGIN SCREEN (WHEN NOT AUTHENTICATED) -------------------- */}
+        {/* -------------------- LOGIN SCREEN -------------------- */}
         {!isAuthenticated ? (
           <div className="p-6 sm:p-10 flex flex-col items-center justify-center max-w-md mx-auto my-auto text-center space-y-6 w-full">
             <div className="w-16 h-16 rounded-2xl bg-neutral-100 border border-neutral-200 flex items-center justify-center text-neutral-900 shadow-xs">
@@ -494,9 +565,9 @@ export const AdminModal: React.FC<AdminModalProps> = ({
             </div>
 
             <div className="space-y-1.5">
-              <h3 className="text-xl font-bold text-neutral-950 font-mono">Admin Login Required</h3>
+              <h3 className="text-xl font-bold text-neutral-950 font-mono">Store Admin Login</h3>
               <p className="text-xs text-neutral-500 leading-relaxed">
-                Please enter your store password to manage products, pictures, specs, customer orders, and store settings.
+                Please enter your store password to manage products, categories, customer orders, and store settings.
               </p>
             </div>
 
@@ -540,7 +611,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="flex-1 py-2.5 px-4 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-xs font-semibold rounded-xl transition-colors text-center"
+                  className="flex-1 py-2.5 px-4 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-xs font-semibold rounded-xl transition-colors text-center cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -548,7 +619,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                 <button
                   id="admin-login-submit-btn"
                   type="submit"
-                  className="flex-2 py-2.5 px-4 bg-neutral-950 hover:bg-neutral-800 text-white text-xs font-bold rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5"
+                  className="flex-2 py-2.5 px-4 bg-neutral-950 hover:bg-neutral-800 text-white text-xs font-bold rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer"
                 >
                   <Unlock className="w-4 h-4" />
                   <span>Unlock Admin Portal</span>
@@ -557,24 +628,24 @@ export const AdminModal: React.FC<AdminModalProps> = ({
             </form>
           </div>
         ) : (
-          /* -------------------- AUTHENTICATED ADMIN PORTAL -------------------- */
+          /* -------------------- AUTHENTICATED PORTAL -------------------- */
           <>
             {/* Tab Navigation */}
-            <div className="p-3 sm:px-6 bg-neutral-100 border-b border-neutral-200 flex items-center justify-between flex-wrap gap-2">
-              <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+            <div className="p-2 sm:px-6 bg-neutral-100 border-b border-neutral-200 flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
                 <button
                   id="admin-tab-orders"
                   onClick={() => {
                     setActiveTab('orders');
                     setIsAddingProduct(false);
                   }}
-                  className={`px-3.5 py-2 text-xs sm:text-sm font-bold rounded-xl flex items-center gap-1.5 transition-all cursor-pointer ${
+                  className={`px-3 py-2 text-xs sm:text-sm font-bold rounded-xl flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
                     activeTab === 'orders' ? 'bg-neutral-900 text-white shadow-xs' : 'text-neutral-600 hover:bg-neutral-200'
                   }`}
                 >
                   <Package className="w-4 h-4" />
-                  <span>COD & WhatsApp Orders</span>
-                  <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] bg-neutral-700 text-white">
+                  <span>Orders</span>
+                  <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] ${activeTab === 'orders' ? 'bg-neutral-700 text-white' : 'bg-neutral-200 text-neutral-700'}`}>
                     {orders.length}
                   </span>
                 </button>
@@ -582,36 +653,53 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                 <button
                   id="admin-tab-products"
                   onClick={() => setActiveTab('products')}
-                  className={`px-3.5 py-2 text-xs sm:text-sm font-bold rounded-xl flex items-center gap-1.5 transition-all cursor-pointer ${
+                  className={`px-3 py-2 text-xs sm:text-sm font-bold rounded-xl flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
                     activeTab === 'products' ? 'bg-neutral-900 text-white shadow-xs' : 'text-neutral-600 hover:bg-neutral-200'
                   }`}
                 >
                   <ShoppingBag className="w-4 h-4" />
-                  <span>Products & Specs</span>
-                  <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] bg-neutral-200 text-neutral-800 font-bold">
+                  <span>Products</span>
+                  <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] ${activeTab === 'products' ? 'bg-neutral-700 text-white' : 'bg-neutral-200 text-neutral-700'}`}>
                     {products.length}
                   </span>
                 </button>
 
                 <button
-                  id="admin-tab-featureddrop"
+                  id="admin-tab-categories"
                   onClick={() => {
-                    setActiveTab('featureddrop');
+                    setActiveTab('categories');
                     setIsAddingProduct(false);
                   }}
-                  className={`px-3.5 py-2 text-xs sm:text-sm font-bold rounded-xl flex items-center gap-1.5 transition-all cursor-pointer ${
-                    activeTab === 'featureddrop' ? 'bg-neutral-900 text-white shadow-xs' : 'text-neutral-600 hover:bg-neutral-200'
+                  className={`px-3 py-2 text-xs sm:text-sm font-bold rounded-xl flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
+                    activeTab === 'categories' ? 'bg-neutral-900 text-white shadow-xs' : 'text-neutral-600 hover:bg-neutral-200'
+                  }`}
+                >
+                  <Layers className="w-4 h-4 text-amber-500" />
+                  <span>Categories & Filters</span>
+                  <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] ${activeTab === 'categories' ? 'bg-neutral-700 text-white' : 'bg-neutral-200 text-neutral-700'}`}>
+                    {activeCategories.length}
+                  </span>
+                </button>
+
+                <button
+                  id="admin-tab-hero"
+                  onClick={() => {
+                    setActiveTab('hero');
+                    setIsAddingProduct(false);
+                  }}
+                  className={`px-3 py-2 text-xs sm:text-sm font-bold rounded-xl flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
+                    activeTab === 'hero' ? 'bg-neutral-900 text-white shadow-xs' : 'text-neutral-600 hover:bg-neutral-200'
                   }`}
                 >
                   <Sparkles className="w-4 h-4 text-emerald-400" />
-                  <span>Featured Drop</span>
-                  {featuredDropForm.enabled ? (
+                  <span>Hero & Banners</span>
+                  {heroForm.enabled ? (
                     <span className="px-1.5 py-0.5 rounded-full text-[9px] bg-emerald-500 text-white font-bold">
-                      Live
+                      Active
                     </span>
                   ) : (
                     <span className="px-1.5 py-0.5 rounded-full text-[9px] bg-neutral-300 text-neutral-600 font-medium">
-                      Off
+                      Hidden
                     </span>
                   )}
                 </button>
@@ -622,38 +710,59 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                     setActiveTab('settings');
                     setIsAddingProduct(false);
                   }}
-                  className={`px-3.5 py-2 text-xs sm:text-sm font-bold rounded-xl flex items-center gap-1.5 transition-all cursor-pointer ${
+                  className={`px-3 py-2 text-xs sm:text-sm font-bold rounded-xl flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
                     activeTab === 'settings' ? 'bg-neutral-900 text-white shadow-xs' : 'text-neutral-600 hover:bg-neutral-200'
                   }`}
                 >
                   <Settings className="w-4 h-4" />
-                  <span>Store & WhatsApp Settings</span>
+                  <span>Store Settings</span>
                 </button>
               </div>
 
               {activeTab === 'orders' && orders.length > 0 && (
                 <button
                   onClick={exportOrdersCSV}
-                  className="inline-flex items-center gap-1 text-xs font-semibold text-neutral-700 bg-white border border-neutral-300 px-3 py-1.5 rounded-lg hover:bg-neutral-50 shadow-2xs"
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-neutral-700 bg-white border border-neutral-300 px-3 py-1.5 rounded-lg hover:bg-neutral-50 shadow-2xs cursor-pointer"
                 >
-                  <Download className="w-3.5 h-3.5" /> <span>Export CSV</span>
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Export CSV</span>
                 </button>
               )}
             </div>
 
-            {/* ==================== TAB 1: ORDERS VIEW ==================== */}
+            {/* ==================== TAB 1: ORDERS ==================== */}
             {activeTab === 'orders' && (
-              <div className="p-4 sm:p-6 overflow-y-auto space-y-4 max-h-[70vh]">
+              <div className="p-4 sm:p-6 overflow-y-auto space-y-4 max-h-[72vh]">
+                {/* Stats cards */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="bg-neutral-50 p-3 rounded-xl border border-neutral-200">
+                    <span className="text-[11px] font-semibold text-neutral-500 uppercase">Total Orders</span>
+                    <p className="text-lg sm:text-xl font-mono font-black text-neutral-900 mt-0.5">{orders.length}</p>
+                  </div>
+                  <div className="bg-neutral-50 p-3 rounded-xl border border-neutral-200">
+                    <span className="text-[11px] font-semibold text-neutral-500 uppercase">Total COD Value</span>
+                    <p className="text-lg sm:text-xl font-mono font-black text-emerald-700 mt-0.5">{formatBDT(totalRevenue)}</p>
+                  </div>
+                  <div className="bg-amber-50/60 p-3 rounded-xl border border-amber-200/80">
+                    <span className="text-[11px] font-semibold text-amber-800 uppercase">Pending Orders</span>
+                    <p className="text-lg sm:text-xl font-mono font-black text-amber-900 mt-0.5">{pendingCount}</p>
+                  </div>
+                  <div className="bg-emerald-50/60 p-3 rounded-xl border border-emerald-200/80">
+                    <span className="text-[11px] font-semibold text-emerald-800 uppercase">Delivered Orders</span>
+                    <p className="text-lg sm:text-xl font-mono font-black text-emerald-900 mt-0.5">{deliveredCount}</p>
+                  </div>
+                </div>
+
                 {/* Filter and Search Toolbar */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
                   <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
                     {(['all', 'Pending', 'Confirmed', 'Dispatched', 'Delivered', 'Cancelled'] as const).map((st) => (
                       <button
                         key={st}
                         onClick={() => setOrderFilter(st)}
-                        className={`px-3 py-1 text-xs font-semibold rounded-full capitalize whitespace-nowrap transition-colors ${
+                        className={`px-3 py-1 text-xs font-semibold rounded-full capitalize whitespace-nowrap transition-colors cursor-pointer ${
                           orderFilter === st
-                            ? 'bg-neutral-900 text-white'
+                            ? 'bg-neutral-900 text-white shadow-xs'
                             : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
                         }`}
                       >
@@ -662,7 +771,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                     ))}
                   </div>
 
-                  <div className="relative min-w-[200px]">
+                  <div className="relative min-w-[220px]">
                     <Search className="w-3.5 h-3.5 text-neutral-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
                     <input
                       type="text"
@@ -678,14 +787,14 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                   <div className="text-center py-12 bg-neutral-50 rounded-2xl border border-neutral-200 text-neutral-500 text-xs">
                     <Package className="w-10 h-10 mx-auto text-neutral-300 mb-2" />
                     <p className="font-semibold text-sm text-neutral-700">No orders match your filter</p>
-                    <p className="mt-1">When customers place COD orders or contact via WhatsApp, orders are recorded here.</p>
+                    <p className="mt-1">When customers place COD orders or reach out via WhatsApp, orders appear here.</p>
                   </div>
                 ) : (
                   <div className="space-y-3">
                     {filteredOrders.map((ord) => {
                       const customerCleanPhone = cleanPhoneForWhatsApp(ord.customerPhone);
                       const whatsappCustomerChat = `https://wa.me/${customerCleanPhone}?text=${encodeURIComponent(
-                        `Hello ${ord.customerName}! We received your Vorbox COD order (${ord.orderNumber}). Current Status: ${ord.status}. Delivery Address: ${ord.deliveryAddress}, ${ord.deliveryArea}. Total Cash to Collect: ${formatBDT(ord.totalAmount)}.`
+                        `Hello ${ord.customerName}! We received your ${settings.storeName} COD order (${ord.orderNumber}). Current Status: ${ord.status}. Delivery Address: ${ord.deliveryAddress}, ${ord.deliveryArea}. Total Cash to Collect: ${formatBDT(ord.totalAmount)}.`
                       )}`;
 
                       return (
@@ -695,7 +804,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                         >
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-100 pb-2.5">
                             <div>
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2 flex-wrap">
                                 <span className="font-mono font-black text-sm text-neutral-900">{ord.orderNumber}</span>
                                 <span className="text-[11px] text-neutral-500 font-medium">
                                   {new Date(ord.createdAt).toLocaleDateString()} at{' '}
@@ -713,7 +822,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                               </p>
                             </div>
 
-                            {/* Order Status Select */}
+                            {/* Order Status Dropdown */}
                             <div className="flex items-center gap-2">
                               <label className="text-xs text-neutral-500 font-medium">Status:</label>
                               <select
@@ -733,7 +842,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                               >
                                 <option value="Pending">Pending (Received)</option>
                                 <option value="Confirmed">Confirmed</option>
-                                <option value="Dispatched">Dispatched (Out for Delivery)</option>
+                                <option value="Dispatched">Dispatched (Fast Delivery)</option>
                                 <option value="Delivered">Delivered (Cash Collected)</option>
                                 <option value="Cancelled">Cancelled</option>
                               </select>
@@ -796,7 +905,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                 href={whatsappCustomerChat}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-lg text-xs font-semibold"
+                                className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-lg text-xs font-semibold cursor-pointer"
                                 title="Update Customer on WhatsApp"
                               >
                                 <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
@@ -805,7 +914,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 
                               <a
                                 href={`tel:${ord.customerPhone}`}
-                                className="inline-flex items-center gap-1 px-3 py-1.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 rounded-lg text-xs font-semibold"
+                                className="inline-flex items-center gap-1 px-3 py-1.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 rounded-lg text-xs font-semibold cursor-pointer"
                               >
                                 <Phone className="w-3.5 h-3.5" />
                                 <span>Call</span>
@@ -814,7 +923,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                               <button
                                 type="button"
                                 onClick={() => onDeleteOrder(ord.id)}
-                                className="p-1.5 text-neutral-400 hover:text-rose-600 transition-colors"
+                                className="p-1.5 text-neutral-400 hover:text-rose-600 transition-colors cursor-pointer"
                                 title="Delete order"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -829,16 +938,16 @@ export const AdminModal: React.FC<AdminModalProps> = ({
               </div>
             )}
 
-            {/* ==================== TAB 2: PRODUCTS & SPECS MANAGER ==================== */}
+            {/* ==================== TAB 2: PRODUCTS & INVENTORY ==================== */}
             {activeTab === 'products' && (
-              <div className="p-4 sm:p-6 overflow-y-auto space-y-4 max-h-[70vh]">
-                <div className="flex items-center justify-between">
+              <div className="p-4 sm:p-6 overflow-y-auto space-y-4 max-h-[72vh]">
+                <div className="flex items-center justify-between flex-wrap gap-2">
                   <div>
                     <h3 className="text-sm font-bold text-neutral-900 font-mono">
-                      Vorbox Product Catalog ({products.length} Items)
+                      Product Catalog ({products.length} Items)
                     </h3>
                     <p className="text-[11px] text-neutral-500">
-                      Add, update pics, specifications, fabric GSM, sizes, and stock availability
+                      Manage prices, stock status, sizing (S, M, L, XL, XXL), colors, and images
                     </p>
                   </div>
 
@@ -848,26 +957,26 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                         setEditingProductId(null);
                         setProductForm({
                           name: '',
-                          category: 'T-Shirts',
-                          price: 590,
-                          originalPrice: 750,
+                          category: activeCategories[0] || 'T-Shirts',
+                          price: 550,
+                          originalPrice: 700,
                           description: '',
-                          fabric: '100% Organic Combed Cotton',
+                          fabric: '100% Combed Cotton',
                           gsm: '220 GSM',
                           images: ['https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=1000&q=80'],
-                          sizes: ['M', 'L', 'XL'],
+                          sizes: ['M', 'L', 'XL', 'XXL'],
                           colors: [
                             { name: 'Onyx Black', hex: '#111111' },
-                            { name: 'Pure White', hex: '#fafaf9' },
+                            { name: 'Chalk White', hex: '#fafaf9' },
                           ],
                           inStock: true,
                           featured: true,
-                          tag: 'Sundarganj Special',
+                          tag: 'Best Seller',
                           features: ['220 GSM 100% Combed Cotton', 'Pre-shrunk', 'Regular fit'],
                         });
                         setIsAddingProduct(true);
                       }}
-                      className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-neutral-950 text-white text-xs font-semibold rounded-xl hover:bg-neutral-800 transition-colors shadow-xs"
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-neutral-950 text-white text-xs font-semibold rounded-xl hover:bg-neutral-800 transition-colors shadow-xs cursor-pointer"
                     >
                       <Plus className="w-4 h-4" />
                       <span>Add New Clothing Item</span>
@@ -882,19 +991,19 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                       <div className="flex items-center gap-2">
                         <span className="w-2 h-2 rounded-full bg-emerald-500" />
                         <h4 className="font-bold text-sm text-neutral-900">
-                          {editingProductId ? 'Edit Product & Specs' : 'Add New Clothing Product to Vorbox'}
+                          {editingProductId ? 'Edit Product & Specs' : 'Add New Clothing Product to CrownBorn'}
                         </h4>
                       </div>
                       <button
                         type="button"
                         onClick={() => setIsAddingProduct(false)}
-                        className="text-xs font-semibold text-neutral-500 hover:text-neutral-900 bg-neutral-200/80 px-2.5 py-1 rounded-lg"
+                        className="text-xs font-semibold text-neutral-500 hover:text-neutral-900 bg-neutral-200/80 px-2.5 py-1 rounded-lg cursor-pointer"
                       >
                         Cancel
                       </button>
                     </div>
 
-                    {/* Section 1: Basic Info */}
+                    {/* Basic Details */}
                     <div className="space-y-3">
                       <h5 className="text-[11px] font-bold uppercase tracking-wider text-neutral-500">1. Basic Details</h5>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
@@ -913,18 +1022,20 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                         </div>
 
                         <div>
-                          <label className="block font-semibold text-neutral-700 mb-1">Category</label>
-                          <select
-                            value={productForm.category || 'T-Shirts'}
-                            onChange={(e) => setProductForm({ ...productForm, category: e.target.value as any })}
-                            className="w-full p-2.5 bg-white border border-neutral-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-neutral-900"
-                          >
-                            <option value="T-Shirts">T-Shirts</option>
-                            <option value="Polos">Polos</option>
-                            <option value="Panjabis">Panjabis</option>
-                            <option value="Hoodies & Sweats">Hoodies & Sweats</option>
-                            <option value="Pants & Bottoms">Pants & Bottoms</option>
-                          </select>
+                          <label className="block font-semibold text-neutral-700 mb-1">Category / Collection</label>
+                          <div className="flex gap-1.5">
+                            <select
+                              value={productForm.category || activeCategories[0] || 'T-Shirts'}
+                              onChange={(e) => setProductForm({ ...productForm, category: e.target.value })}
+                              className="flex-1 p-2.5 bg-white border border-neutral-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-neutral-900"
+                            >
+                              {activeCategories.map((cat) => (
+                                <option key={cat} value={cat}>
+                                  {cat}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
                         </div>
 
                         <div>
@@ -953,393 +1064,283 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                             className="w-full p-2.5 bg-white border border-neutral-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-neutral-900 font-mono"
                           />
                         </div>
-                      </div>
-                    </div>
 
-                    {/* Section 2: Product Pictures Control */}
-                    <div className="space-y-3 pt-3 border-t border-neutral-200">
-                      <div className="flex items-center justify-between">
-                        <h5 className="text-[11px] font-bold uppercase tracking-wider text-neutral-500 flex items-center gap-1.5">
-                          <ImageIcon className="w-3.5 h-3.5" />
-                          <span>2. Product Pictures & Gallery</span>
-                        </h5>
-                        <span className="text-[11px] text-neutral-500">
-                          {productForm.images?.length || 0} image(s) attached
-                        </span>
-                      </div>
-
-                      {/* Current Images Preview */}
-                      {productForm.images && productForm.images.length > 0 ? (
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                          {productForm.images.map((imgUrl, idx) => (
-                            <div key={idx} className="relative bg-white border border-neutral-300 rounded-xl overflow-hidden aspect-square shadow-2xs group">
-                              <img src={imgUrl} alt={`Preview ${idx + 1}`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                              {idx === 0 ? (
-                                <span className="absolute top-1.5 left-1.5 px-2 py-0.5 bg-neutral-900 text-white text-[9px] font-bold rounded-md shadow-xs z-10">
-                                  Cover
-                                </span>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    handleSetPrimaryImage(idx);
-                                  }}
-                                  className="absolute bottom-1.5 left-1.5 px-2 py-1 bg-white/95 hover:bg-white text-neutral-900 text-[10px] font-bold rounded-md shadow-md border border-neutral-200 z-10 transition-all cursor-pointer"
-                                  title="Set as Cover Image"
-                                >
-                                  Make Cover
-                                </button>
-                              )}
-
-                              {/* Always visible, easy-to-tap delete button */}
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  handleRemoveImage(idx);
-                                }}
-                                className="absolute top-1.5 right-1.5 p-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-full shadow-md z-20 transition-transform active:scale-90 cursor-pointer flex items-center justify-center"
-                                title="Delete image"
-                                aria-label="Delete image"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="p-4 bg-white rounded-xl border border-dashed border-neutral-300 text-center text-xs text-neutral-400">
-                          No product images attached yet. Add an image URL or upload a file below.
-                        </div>
-                      )}
-
-                      {/* Add Image Inputs */}
-                      <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 text-xs">
-                        <div className="sm:col-span-9 flex gap-2">
-                          <input
-                            type="url"
-                            value={newImageUrlInput}
-                            onChange={(e) => setNewImageUrlInput(e.target.value)}
-                            placeholder="Paste Image URL (https://...)"
-                            className="flex-1 p-2 bg-white border border-neutral-300 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-neutral-900"
-                          />
-                          <button
-                            type="button"
-                            onClick={handleAddImageUrl}
-                            className="px-3 py-2 bg-neutral-900 hover:bg-neutral-800 text-white rounded-lg font-semibold shrink-0"
-                          >
-                            + Add URL
-                          </button>
-                        </div>
-
-                        {/* Local File Upload */}
-                        <div className="sm:col-span-3">
-                          <label className="flex items-center justify-center gap-1.5 px-3 py-2 bg-white border border-neutral-300 rounded-lg font-semibold text-neutral-700 hover:bg-neutral-50 cursor-pointer text-center">
-                            <Upload className="w-3.5 h-3.5 text-neutral-500" />
-                            <span>Upload File</span>
-                            <input type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
-                          </label>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Section 3: Specs & Fabric */}
-                    <div className="space-y-3 pt-3 border-t border-neutral-200">
-                      <h5 className="text-[11px] font-bold uppercase tracking-wider text-neutral-500 flex items-center gap-1.5">
-                        <Layers className="w-3.5 h-3.5" />
-                        <span>3. Specs, Fabric & Features</span>
-                      </h5>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
                         <div>
-                          <label className="block font-semibold text-neutral-700 mb-1">Fabric Composition</label>
+                          <label className="block font-semibold text-neutral-700 mb-1">Fabric Material</label>
                           <input
                             type="text"
                             value={productForm.fabric || ''}
                             onChange={(e) => setProductForm({ ...productForm, fabric: e.target.value })}
-                            placeholder="e.g. 100% Combed Cotton"
-                            className="w-full p-2.5 bg-white border border-neutral-300 rounded-lg"
+                            placeholder="e.g. 100% Organic Combed Cotton"
+                            className="w-full p-2.5 bg-white border border-neutral-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-neutral-900"
                           />
                         </div>
 
                         <div>
-                          <label className="block font-semibold text-neutral-700 mb-1">GSM / Density</label>
+                          <label className="block font-semibold text-neutral-700 mb-1">Fabric Weight / GSM</label>
                           <input
                             type="text"
                             value={productForm.gsm || ''}
                             onChange={(e) => setProductForm({ ...productForm, gsm: e.target.value })}
                             placeholder="e.g. 220 GSM"
-                            className="w-full p-2.5 bg-white border border-neutral-300 rounded-lg"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block font-semibold text-neutral-700 mb-1">Custom Badge / Tag</label>
-                          <input
-                            type="text"
-                            value={productForm.tag || ''}
-                            onChange={(e) => setProductForm({ ...productForm, tag: e.target.value })}
-                            placeholder="e.g. Sundarganj Special, Best Seller"
-                            className="w-full p-2.5 bg-white border border-neutral-300 rounded-lg"
+                            className="w-full p-2.5 bg-white border border-neutral-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-neutral-900"
                           />
                         </div>
                       </div>
 
-                      {/* Bullet Specs / Feature Tags */}
-                      <div className="space-y-1.5 text-xs">
-                        <label className="block font-semibold text-neutral-700">
-                          Bullet Specifications & Highlights
-                        </label>
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            value={newFeatureInput}
-                            onChange={(e) => setNewFeatureInput(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                e.preventDefault();
-                                handleAddFeature();
-                              }
-                            }}
-                            placeholder="e.g. High-density embroidery, Anti-pilling silicone wash..."
-                            className="flex-1 p-2 bg-white border border-neutral-300 rounded-lg"
-                          />
-                          <button
-                            type="button"
-                            onClick={handleAddFeature}
-                            className="px-3 py-2 bg-neutral-900 text-white rounded-lg font-semibold"
-                          >
-                            + Add Spec
-                          </button>
-                        </div>
-
-                        <div className="flex items-center gap-1.5 flex-wrap pt-1">
-                          {productForm.features?.map((ft, ftIdx) => (
-                            <span
-                              key={ftIdx}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 bg-white border border-neutral-300 rounded-lg text-[11px] font-medium text-neutral-800"
-                            >
-                              <span>{ft}</span>
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveFeature(ftIdx)}
-                                className="text-neutral-400 hover:text-rose-600"
-                              >
-                                ×
-                              </button>
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Sizes Checkboxes */}
-                      <div className="space-y-1.5 text-xs pt-1">
-                        <label className="block font-semibold text-neutral-700">Available Sizes</label>
-                        <div className="flex items-center gap-2">
-                          {(['S', 'M', 'L', 'XL', 'XXL'] as const).map((sz) => {
-                            const isChecked = (productForm.sizes || []).includes(sz);
-                            return (
-                              <button
-                                key={sz}
-                                type="button"
-                                onClick={() => handleToggleSize(sz)}
-                                className={`w-9 h-9 rounded-lg font-bold text-xs border transition-all ${
-                                  isChecked
-                                    ? 'bg-neutral-900 text-white border-neutral-900 shadow-xs'
-                                    : 'bg-white text-neutral-500 border-neutral-300 hover:border-neutral-500'
-                                }`}
-                              >
-                                {sz}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      {/* Colors Manager */}
-                      <div className="space-y-1.5 text-xs pt-1">
-                        <label className="block font-semibold text-neutral-700">Available Colors</label>
-                        <div className="flex items-center gap-2 flex-wrap mb-2">
-                          {productForm.colors?.map((c, cIdx) => (
-                            <span
-                              key={cIdx}
-                              className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white border border-neutral-300 rounded-lg text-[11px] font-medium text-neutral-800 shadow-2xs"
-                            >
-                              <span className="w-3.5 h-3.5 rounded-full border border-neutral-300" style={{ backgroundColor: c.hex }} />
-                              <span>{c.name}</span>
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveColor(cIdx)}
-                                className="text-neutral-400 hover:text-rose-600"
-                              >
-                                ×
-                              </button>
-                            </span>
-                          ))}
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="text"
-                            value={newColorName}
-                            onChange={(e) => setNewColorName(e.target.value)}
-                            placeholder="Color Name (e.g. Royal Navy)"
-                            className="p-2 text-xs bg-white border border-neutral-300 rounded-lg w-48"
-                          />
-                          <input
-                            type="color"
-                            value={newColorHex}
-                            onChange={(e) => setNewColorHex(e.target.value)}
-                            className="w-9 h-8 p-0.5 bg-white border border-neutral-300 rounded-lg cursor-pointer"
-                          />
-                          <button
-                            type="button"
-                            onClick={handleAddColor}
-                            className="px-3 py-2 bg-neutral-900 text-white rounded-lg text-xs font-semibold"
-                          >
-                            + Add Color
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Description */}
-                      <div className="space-y-1 text-xs pt-1">
-                        <label className="block font-semibold text-neutral-700">Description</label>
+                      <div>
+                        <label className="block font-semibold text-neutral-700 text-xs mb-1">Description</label>
                         <textarea
-                          rows={3}
+                          rows={2}
                           value={productForm.description || ''}
                           onChange={(e) => setProductForm({ ...productForm, description: e.target.value })}
-                          placeholder="Describe fabric texture, fit style, styling suggestions..."
-                          className="w-full p-2.5 bg-white border border-neutral-300 rounded-lg"
+                          placeholder="Describe the silhouette, fit, comfort, and Bangladesh weather suitability..."
+                          className="w-full p-2.5 bg-white border border-neutral-300 rounded-lg text-xs focus:outline-hidden focus:ring-2 focus:ring-neutral-900"
                         />
                       </div>
+                    </div>
 
-                      {/* Stock & Featured Toggles */}
-                      <div className="flex items-center gap-6 pt-2 text-xs">
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={productForm.inStock ?? true}
-                            onChange={(e) => setProductForm({ ...productForm, inStock: e.target.checked })}
-                            className="w-4 h-4 rounded text-neutral-900 focus:ring-neutral-900"
-                          />
-                          <span className="font-semibold text-neutral-800">In Stock (Available for Instant COD)</span>
-                        </label>
+                    {/* Sizes Selection */}
+                    <div className="space-y-2 border-t border-neutral-200 pt-3">
+                      <h5 className="text-[11px] font-bold uppercase tracking-wider text-neutral-500">
+                        2. Available Sizes (Bangladeshi Standard)
+                      </h5>
+                      <div className="flex flex-wrap gap-2">
+                        {(['S', 'M', 'L', 'XL', 'XXL'] as const).map((sz) => {
+                          const active = productForm.sizes?.includes(sz);
+                          return (
+                            <button
+                              key={sz}
+                              type="button"
+                              onClick={() => handleToggleSize(sz)}
+                              className={`px-4 py-2 text-xs font-bold rounded-lg border transition-all cursor-pointer ${
+                                active
+                                  ? 'bg-neutral-900 text-white border-neutral-900 shadow-xs'
+                                  : 'bg-white text-neutral-500 border-neutral-300 hover:border-neutral-500'
+                              }`}
+                            >
+                              Size {sz}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
 
-                        <label className="flex items-center gap-2 cursor-pointer">
+                    {/* Color Options */}
+                    <div className="space-y-2 border-t border-neutral-200 pt-3">
+                      <h5 className="text-[11px] font-bold uppercase tracking-wider text-neutral-500">3. Color Variations</h5>
+                      <div className="flex flex-wrap gap-2">
+                        {(productForm.colors || []).map((clr, idx) => (
+                          <div
+                            key={idx}
+                            className="flex items-center gap-1.5 bg-white px-2.5 py-1.5 rounded-lg border border-neutral-300 text-xs shadow-2xs"
+                          >
+                            <span className="w-3.5 h-3.5 rounded-full border border-neutral-300" style={{ backgroundColor: clr.hex }} />
+                            <span className="font-medium text-neutral-800">{clr.name}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveColor(idx)}
+                              className="text-neutral-400 hover:text-rose-600 ml-1 p-0.5 cursor-pointer"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Add Color */}
+                      <div className="flex items-center gap-2 max-w-md pt-1">
+                        <input
+                          type="color"
+                          value={newColorHex}
+                          onChange={(e) => setNewColorHex(e.target.value)}
+                          className="w-8 h-8 rounded border border-neutral-300 cursor-pointer p-0.5 bg-white"
+                        />
+                        <input
+                          type="text"
+                          value={newColorName}
+                          onChange={(e) => setNewColorName(e.target.value)}
+                          placeholder="Color Name (e.g. Navy Blue)"
+                          className="flex-1 p-2 bg-white border border-neutral-300 rounded-lg text-xs focus:outline-hidden"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleAddColor}
+                          className="px-3 py-2 bg-neutral-900 text-white text-xs font-semibold rounded-lg hover:bg-neutral-800 cursor-pointer"
+                        >
+                          + Add Color
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Images Manager */}
+                    <div className="space-y-2 border-t border-neutral-200 pt-3">
+                      <h5 className="text-[11px] font-bold uppercase tracking-wider text-neutral-500">4. Product Images</h5>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {(productForm.images || []).map((img, idx) => (
+                          <div key={idx} className="relative group bg-white rounded-lg border border-neutral-300 overflow-hidden aspect-square">
+                            <img src={img} alt="Product preview" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                            {idx === 0 && (
+                              <span className="absolute top-1 left-1 bg-neutral-900 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">
+                                Primary
+                              </span>
+                            )}
+                            <div className="absolute inset-0 bg-neutral-950/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 p-1">
+                              {idx !== 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleSetPrimaryImage(idx)}
+                                  className="text-[10px] bg-white text-neutral-900 px-2 py-1 rounded font-bold hover:bg-neutral-100 cursor-pointer"
+                                >
+                                  Make Primary
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveImage(idx)}
+                                className="p-1 bg-rose-600 text-white rounded hover:bg-rose-700 cursor-pointer"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Image Input Options */}
+                      <div className="flex flex-col sm:flex-row gap-2 pt-1 text-xs">
+                        <div className="flex-1 flex gap-1.5">
                           <input
-                            type="checkbox"
-                            checked={productForm.featured ?? false}
-                            onChange={(e) => setProductForm({ ...productForm, featured: e.target.checked })}
-                            className="w-4 h-4 rounded text-neutral-900 focus:ring-neutral-900"
+                            type="text"
+                            value={newImageUrlInput}
+                            onChange={(e) => setNewImageUrlInput(e.target.value)}
+                            placeholder="Paste Image URL (https://...)"
+                            className="flex-1 p-2 bg-white border border-neutral-300 rounded-lg text-xs focus:outline-hidden"
                           />
-                          <span className="font-semibold text-neutral-800">Featured on Top</span>
+                          <button
+                            type="button"
+                            onClick={handleAddImageUrl}
+                            className="px-3 py-2 bg-neutral-900 text-white font-semibold rounded-lg hover:bg-neutral-800 cursor-pointer"
+                          >
+                            Add URL
+                          </button>
+                        </div>
+
+                        <label className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-white border border-neutral-300 rounded-lg font-semibold text-neutral-700 hover:bg-neutral-100 cursor-pointer">
+                          <Upload className="w-3.5 h-3.5" />
+                          <span>Upload Image File</span>
+                          <input type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
                         </label>
                       </div>
                     </div>
 
-                    <div className="flex justify-end gap-2.5 pt-4 border-t border-neutral-200">
+                    {/* Stock & Feature Flags */}
+                    <div className="flex items-center gap-6 border-t border-neutral-200 pt-3 text-xs">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={productForm.inStock ?? true}
+                          onChange={(e) => setProductForm({ ...productForm, inStock: e.target.checked })}
+                          className="w-4 h-4 rounded text-neutral-900 focus:ring-neutral-900"
+                        />
+                        <span className="font-semibold text-neutral-800">In Stock for Immediate Delivery</span>
+                      </label>
+
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={productForm.featured ?? false}
+                          onChange={(e) => setProductForm({ ...productForm, featured: e.target.checked })}
+                          className="w-4 h-4 rounded text-neutral-900 focus:ring-neutral-900"
+                        />
+                        <span className="font-semibold text-neutral-800">Feature on Homepage</span>
+                      </label>
+                    </div>
+
+                    {/* Save Product Action */}
+                    <div className="flex items-center justify-end gap-2 pt-3 border-t border-neutral-200">
                       <button
                         type="button"
                         onClick={() => setIsAddingProduct(false)}
-                        className="px-4 py-2.5 bg-neutral-200 text-neutral-700 text-xs font-semibold rounded-xl hover:bg-neutral-300 transition-colors"
+                        className="px-4 py-2.5 text-xs font-semibold text-neutral-600 hover:bg-neutral-200 rounded-xl cursor-pointer"
                       >
                         Cancel
                       </button>
                       <button
                         type="submit"
-                        className="px-5 py-2.5 bg-neutral-950 hover:bg-neutral-800 text-white text-xs font-bold rounded-xl transition-all shadow-md flex items-center gap-1.5"
+                        className="px-5 py-2.5 bg-neutral-950 hover:bg-neutral-800 text-white text-xs font-bold rounded-xl shadow-md flex items-center gap-1.5 cursor-pointer"
                       >
-                        <Save className="w-3.5 h-3.5" />
-                        <span>{editingProductId ? 'Save Changes' : 'Publish Product'}</span>
+                        <Save className="w-4 h-4" />
+                        <span>{editingProductId ? 'Update Product' : 'Save & Publish Product'}</span>
                       </button>
                     </div>
                   </form>
                 ) : (
-                  /* Products Grid */
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  /* Product Grid / List in Admin */
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     {products.map((prod) => (
                       <div
                         key={prod.id}
-                        className="bg-neutral-50 p-3.5 rounded-2xl border border-neutral-200 flex gap-3.5 items-center justify-between hover:border-neutral-400 transition-colors"
+                        className="bg-white p-3 rounded-xl border border-neutral-200 shadow-xs flex flex-col justify-between hover:border-neutral-400 transition-colors"
                       >
-                        <div className="flex items-center gap-3">
-                          <div className="relative w-14 h-16 rounded-xl overflow-hidden bg-neutral-200 shrink-0">
-                            <img
-                              src={prod.images[0]}
-                              alt={prod.name}
-                              className="w-full h-full object-cover"
-                              referrerPolicy="no-referrer"
-                            />
+                        <div className="space-y-2">
+                          <div className="relative aspect-[4/3] rounded-lg overflow-hidden bg-neutral-100">
+                            <img src={prod.images[0]} alt={prod.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                            <span className="absolute top-1.5 left-1.5 px-2 py-0.5 rounded text-[10px] font-bold bg-neutral-900 text-white">
+                              {prod.category}
+                            </span>
                             {!prod.inStock && (
-                              <span className="absolute inset-0 bg-neutral-950/70 text-white text-[8px] font-bold flex items-center justify-center">
-                                OUT
+                              <span className="absolute top-1.5 right-1.5 px-2 py-0.5 rounded text-[10px] font-bold bg-rose-600 text-white">
+                                Out of Stock
                               </span>
                             )}
                           </div>
+
                           <div>
-                            <h4 className="font-bold text-xs text-neutral-900 line-clamp-1">{prod.name}</h4>
-                            <p className="text-[11px] text-neutral-500 font-medium">
-                              {prod.category} • <strong className="text-neutral-900 font-mono">{formatBDT(prod.price)}</strong>
-                            </p>
-                            <div className="flex items-center gap-1 mt-1">
-                              <span className="text-[10px] text-neutral-400 bg-neutral-200/70 px-1.5 py-0.5 rounded">
-                                {prod.fabric || prod.gsm || 'Cotton'}
+                            <h4 className="font-bold text-xs sm:text-sm text-neutral-900 line-clamp-1">{prod.name}</h4>
+                            <div className="flex items-center justify-between text-xs mt-1">
+                              <span className="font-mono font-bold text-neutral-950">{formatBDT(prod.price)}</span>
+                              <span className="text-[11px] text-neutral-500">
+                                Sizes: {prod.sizes.join(', ')}
                               </span>
-                              {prod.tag && (
-                                <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-1.5 py-0.5 rounded">
-                                  {prod.tag}
-                                </span>
-                              )}
                             </div>
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          {productToDeleteId === prod.id ? (
-                            <div className="flex items-center gap-1 bg-rose-50 border border-rose-300 p-1 rounded-xl">
-                              <span className="text-[10px] font-bold text-rose-800 px-1">Delete item?</span>
-                              <button
-                                type="button"
-                                onClick={() => {
+                        <div className="flex items-center justify-between pt-2.5 mt-2 border-t border-neutral-100">
+                          {/* In Stock toggle button */}
+                          <button
+                            type="button"
+                            onClick={() => onUpdateProduct({ ...prod, inStock: !prod.inStock })}
+                            className={`text-[10px] font-semibold px-2 py-1 rounded-md cursor-pointer ${
+                              prod.inStock ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'
+                            }`}
+                          >
+                            {prod.inStock ? '✓ In Stock' : '✕ Out of Stock'}
+                          </button>
+
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => startEditProduct(prod)}
+                              className="p-1.5 text-neutral-600 hover:text-neutral-950 hover:bg-neutral-100 rounded-lg cursor-pointer"
+                              title="Edit product specs"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (window.confirm(`Delete "${prod.name}" permanently from the store?`)) {
                                   onDeleteProduct(prod.id);
-                                  setProductToDeleteId(null);
-                                }}
-                                className="px-2 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10px] font-bold shadow-xs cursor-pointer"
-                              >
-                                Yes
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setProductToDeleteId(null)}
-                                className="px-1.5 py-1 bg-neutral-200 hover:bg-neutral-300 text-neutral-800 rounded-lg text-[10px] font-semibold cursor-pointer"
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          ) : (
-                            <>
-                              <button
-                                type="button"
-                                onClick={() => startEditProduct(prod)}
-                                className="p-2 text-neutral-700 hover:text-neutral-950 hover:bg-neutral-200 rounded-lg transition-colors cursor-pointer"
-                                title="Edit specs and pictures"
-                              >
-                                <Edit2 className="w-4 h-4" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setProductToDeleteId(prod.id)}
-                                className="p-2 text-neutral-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                                title="Delete item"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </>
-                          )}
+                                }
+                              }}
+                              className="p-1.5 text-neutral-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer"
+                              title="Delete product"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -1348,741 +1349,601 @@ export const AdminModal: React.FC<AdminModalProps> = ({
               </div>
             )}
 
-            {/* ==================== TAB: FEATURED DROP SETTINGS ==================== */}
-            {activeTab === 'featureddrop' && (
-              <div className="p-4 sm:p-6 overflow-y-auto space-y-6 max-h-[70vh]">
-                {/* Saved notification */}
-                {savedDropNotice && (
-                  <div className="p-3 bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs font-semibold rounded-xl flex items-center gap-2 animate-fadeIn">
-                    <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>Featured Drop configuration updated and saved successfully!</span>
-                  </div>
-                )}
-
-                {/* Hero Featured Drop Header & Status Card */}
-                <div className="p-4 sm:p-5 bg-neutral-900 text-white rounded-2xl border border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="space-y-1">
-                    <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-neutral-800 text-[10px] font-mono text-emerald-400 border border-neutral-700">
-                      <Sparkles className="w-3 h-3" />
-                      <span>Homepage Hero Showcase</span>
-                    </div>
-                    <h3 className="text-base font-bold font-mono">Hero Featured Drop Card</h3>
-                    <p className="text-xs text-neutral-400">
-                      Showcase a hero item right beside the main title and WhatsApp order buttons on your homepage.
+            {/* ==================== TAB 3: DYNAMIC CATEGORIES & FILTERS ==================== */}
+            {activeTab === 'categories' && (
+              <div className="p-4 sm:p-6 overflow-y-auto space-y-5 max-h-[72vh]">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div>
+                    <h3 className="text-sm font-bold text-neutral-900 font-mono">
+                      Dynamic Category & Type Management
+                    </h3>
+                    <p className="text-[11px] text-neutral-500">
+                      Add, rename, or delete category tabs. Any change automatically updates customer navigation and filters live.
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-2.5 shrink-0">
-                    {featuredDropForm.enabled ? (
-                      <span className="px-2.5 py-1 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-lg text-xs font-bold flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                        <span>Live on Homepage</span>
-                      </span>
-                    ) : (
-                      <span className="px-2.5 py-1 bg-neutral-800 text-neutral-400 border border-neutral-700 rounded-lg text-xs font-semibold">
-                        Hidden / Disabled
-                      </span>
-                    )}
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (featuredDropForm.enabled) {
-                          handleDeleteFeaturedDrop();
-                        } else {
-                          handleEnableFeaturedDrop();
-                        }
-                      }}
-                      className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
-                        featuredDropForm.enabled
-                          ? 'bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-neutral-700'
-                          : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-md'
-                      }`}
-                    >
-                      {featuredDropForm.enabled ? 'Disable / Hide' : 'Enable / Add'}
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={handleResetCategories}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-neutral-700 bg-neutral-100 hover:bg-neutral-200 rounded-lg cursor-pointer"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Reset Default Categories</span>
+                  </button>
                 </div>
 
-                {/* Main 2-Column Grid: Form on Left, Live Preview on Right */}
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-                  
-                  {/* Left Column: Form Controls */}
-                  <form onSubmit={handleSaveFeaturedDrop} className="lg:col-span-7 space-y-4 text-xs">
-                    
-                    {/* Quick Select From Existing Catalog Product */}
-                    <div className="p-4 bg-neutral-50 rounded-2xl border border-neutral-200 space-y-2.5">
-                      <div className="flex items-center justify-between">
-                        <label className="font-bold text-neutral-900 flex items-center gap-1.5">
-                          <ShoppingBag className="w-3.5 h-3.5 text-neutral-700" />
-                          <span>Quick Auto-Fill From Catalog</span>
-                        </label>
-                        <span className="text-[10px] text-neutral-500">Auto-fills specs, picture & price</span>
-                      </div>
+                {/* Add Category Form */}
+                <form onSubmit={handleAddCategory} className="bg-neutral-50 p-4 rounded-xl border border-neutral-300 flex flex-col sm:flex-row gap-2">
+                  <input
+                    type="text"
+                    required
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    placeholder="New Category Name (e.g. Premium Polos, Denim, Accessories, Winter Sweaters)..."
+                    className="flex-1 p-2.5 bg-white border border-neutral-300 rounded-lg text-xs focus:outline-hidden focus:ring-2 focus:ring-neutral-900"
+                  />
+                  <button
+                    type="submit"
+                    className="px-4 py-2.5 bg-neutral-950 hover:bg-neutral-800 text-white text-xs font-bold rounded-lg shadow-sm flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Add Category Tab</span>
+                  </button>
+                </form>
 
-                      <select
-                        onChange={(e) => {
-                          if (e.target.value) {
-                            handleSelectProductForDrop(e.target.value);
-                          }
-                        }}
-                        defaultValue=""
-                        className="w-full p-2.5 bg-white border border-neutral-300 rounded-xl focus:ring-2 focus:ring-neutral-900 font-medium text-xs cursor-pointer"
-                      >
-                        <option value="" disabled>-- Select a product to auto-fill details --</option>
-                        {products.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.name} — ৳{p.price} ({p.category})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                {/* Categories Table / List */}
+                <div className="space-y-2">
+                  <h4 className="text-xs font-bold text-neutral-700 uppercase tracking-wider">
+                    Active Categories ({activeCategories.length})
+                  </h4>
 
-                    {/* Core Drop Details */}
-                    <div className="p-4 bg-neutral-50 rounded-2xl border border-neutral-200 space-y-3.5">
-                      <h4 className="font-bold text-neutral-900 text-xs uppercase tracking-wider">
-                        Drop Card Specifications
-                      </h4>
+                  <div className="divide-y divide-neutral-200 border border-neutral-200 rounded-xl bg-white overflow-hidden">
+                    {activeCategories.map((cat, idx) => {
+                      const count = products.filter((p) => p.category === cat).length;
+                      const isEditing = editingCategoryIndex === idx;
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                          <label className="block font-semibold text-neutral-700 mb-1">
-                            Badge Tag Text
-                          </label>
-                          <input
-                            type="text"
-                            required
-                            value={featuredDropForm.badgeText}
-                            onChange={(e) =>
-                              setFeaturedDropForm({ ...featuredDropForm, badgeText: e.target.value })
-                            }
-                            placeholder="e.g. Featured Drop, Top Pick..."
-                            className="w-full p-2.5 bg-white border border-neutral-300 rounded-xl focus:ring-2 focus:ring-neutral-900"
-                          />
-                        </div>
+                      return (
+                        <div key={cat} className="p-3.5 flex items-center justify-between gap-3 hover:bg-neutral-50 transition-colors">
+                          <div className="flex items-center gap-3 flex-1">
+                            <span className="w-6 text-center text-xs font-mono text-neutral-400">{idx + 1}</span>
 
-                        <div>
-                          <label className="block font-semibold text-neutral-700 mb-1">
-                            Product / Drop Title
-                          </label>
-                          <input
-                            type="text"
-                            required
-                            value={featuredDropForm.title}
-                            onChange={(e) =>
-                              setFeaturedDropForm({ ...featuredDropForm, title: e.target.value })
-                            }
-                            placeholder="e.g. Heavyweight Boxy Tee..."
-                            className="w-full p-2.5 bg-white border border-neutral-300 rounded-xl focus:ring-2 focus:ring-neutral-900"
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block font-semibold text-neutral-700 mb-1">
-                          Subtitle / Fabric & GSM Info
-                        </label>
-                        <input
-                          type="text"
-                          value={featuredDropForm.subtitle}
-                          onChange={(e) =>
-                            setFeaturedDropForm({ ...featuredDropForm, subtitle: e.target.value })
-                          }
-                          placeholder="e.g. 220 GSM 100% Combed Cotton"
-                          className="w-full p-2.5 bg-white border border-neutral-300 rounded-xl focus:ring-2 focus:ring-neutral-900"
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                          <label className="block font-semibold text-neutral-700 mb-1">
-                            Special Offer Price (৳ BDT)
-                          </label>
-                          <input
-                            type="number"
-                            required
-                            min="0"
-                            value={featuredDropForm.price}
-                            onChange={(e) =>
-                              setFeaturedDropForm({ ...featuredDropForm, price: Number(e.target.value) })
-                            }
-                            className="w-full p-2.5 bg-white border border-neutral-300 rounded-xl focus:ring-2 focus:ring-neutral-900 font-mono"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block font-semibold text-neutral-700 mb-1">
-                            Original Price (৳ BDT - Optional Strike-through)
-                          </label>
-                          <input
-                            type="number"
-                            min="0"
-                            value={featuredDropForm.originalPrice || ''}
-                            onChange={(e) =>
-                              setFeaturedDropForm({
-                                ...featuredDropForm,
-                                originalPrice: e.target.value ? Number(e.target.value) : undefined,
-                              })
-                            }
-                            placeholder="e.g. 700"
-                            className="w-full p-2.5 bg-white border border-neutral-300 rounded-xl focus:ring-2 focus:ring-neutral-900 font-mono"
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block font-semibold text-neutral-700 mb-1">
-                          Link to Catalog Product (Opens modal on click)
-                        </label>
-                        <select
-                          value={featuredDropForm.productId || ''}
-                          onChange={(e) =>
-                            setFeaturedDropForm({
-                              ...featuredDropForm,
-                              productId: e.target.value || undefined,
-                            })
-                          }
-                          className="w-full p-2.5 bg-white border border-neutral-300 rounded-xl focus:ring-2 focus:ring-neutral-900 cursor-pointer"
-                        >
-                          <option value="">None (Scrolls to catalog)</option>
-                          {products.map((p) => (
-                            <option key={p.id} value={p.id}>
-                              {p.name} (৳{p.price})
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
-                    {/* Image / Picture Uploader */}
-                    <div className="p-4 bg-neutral-50 rounded-2xl border border-neutral-200 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <label className="font-bold text-neutral-900 flex items-center gap-1.5">
-                          <ImageIcon className="w-3.5 h-3.5 text-neutral-700" />
-                          <span>Cover Picture / Showcase Image</span>
-                        </label>
-                      </div>
-
-                      {/* Image URL input */}
-                      <div className="flex gap-2">
-                        <input
-                          type="url"
-                          value={featuredDropImageUrlInput}
-                          onChange={(e) => setFeaturedDropImageUrlInput(e.target.value)}
-                          placeholder="Paste image web link (https://...)"
-                          className="flex-1 p-2 bg-white border border-neutral-300 rounded-xl focus:ring-2 focus:ring-neutral-900"
-                        />
-                        <button
-                          type="button"
-                          onClick={handleAddFeaturedDropImageUrl}
-                          disabled={!featuredDropImageUrlInput.trim()}
-                          className="px-3 py-2 bg-neutral-900 text-white rounded-xl font-semibold disabled:opacity-40 hover:bg-neutral-800 transition-colors cursor-pointer"
-                        >
-                          Set URL
-                        </button>
-                      </div>
-
-                      {/* Direct file upload */}
-                      <div className="flex items-center gap-2 pt-1">
-                        <label className="flex-1 cursor-pointer flex items-center justify-center gap-2 p-2.5 bg-white border border-dashed border-neutral-300 rounded-xl hover:bg-neutral-100 hover:border-neutral-400 transition-colors text-neutral-700 font-medium">
-                          <Upload className="w-3.5 h-3.5 text-neutral-500" />
-                          <span>Upload Image from Device</span>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={handleFeaturedDropImageFileUpload}
-                            className="hidden"
-                          />
-                        </label>
-                      </div>
-                    </div>
-
-                    {/* Save & Action Buttons */}
-                    <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-                      {showDeleteDropConfirm ? (
-                        <div className="flex items-center gap-2 bg-rose-50 border border-rose-200 p-2 rounded-xl">
-                          <span className="text-xs font-bold text-rose-800">Delete / Remove drop?</span>
-                          <button
-                            type="button"
-                            onClick={handleDeleteFeaturedDrop}
-                            className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold shadow-xs cursor-pointer"
-                          >
-                            Yes, Remove
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setShowDeleteDropConfirm(false)}
-                            className="px-2 py-1 bg-neutral-200 hover:bg-neutral-300 text-neutral-800 rounded-lg text-xs font-semibold cursor-pointer"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => setShowDeleteDropConfirm(true)}
-                          className="inline-flex items-center gap-1.5 text-xs text-rose-600 hover:text-rose-800 font-semibold px-3 py-2 rounded-xl hover:bg-rose-50 transition-colors cursor-pointer"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          <span>Delete / Remove Drop</span>
-                        </button>
-                      )}
-
-                      <div className="flex items-center gap-2 ml-auto">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setFeaturedDropForm(DEFAULT_FEATURED_DROP);
-                          }}
-                          className="px-3 py-2 bg-neutral-200 hover:bg-neutral-300 text-neutral-800 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
-                          title="Reset to default drop"
-                        >
-                          Restore Default
-                        </button>
-
-                        <button
-                          type="submit"
-                          className="px-5 py-2 bg-neutral-950 hover:bg-neutral-800 text-white text-xs font-bold rounded-xl transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
-                        >
-                          <Save className="w-3.5 h-3.5" />
-                          <span>Save Featured Drop</span>
-                        </button>
-                      </div>
-                    </div>
-                  </form>
-
-                  {/* Right Column: Live Real-Time Card Preview */}
-                  <div className="lg:col-span-5 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-neutral-700 uppercase tracking-wider">
-                        Live Hero Preview
-                      </span>
-                      <span className="text-[11px] text-neutral-500">
-                        {featuredDropForm.enabled ? '🟢 Displayed on Website' : '🔴 Currently Hidden'}
-                      </span>
-                    </div>
-
-                    <div className="p-4 bg-neutral-900 rounded-3xl border border-neutral-800 shadow-xl">
-                      <div className="text-[10px] text-neutral-400 font-mono mb-2 flex items-center gap-1.5">
-                        <Sparkles className="w-3 h-3 text-emerald-400" />
-                        <span>Homepage Preview</span>
-                      </div>
-
-                      {/* The Card */}
-                      <div className="relative rounded-2xl overflow-hidden bg-neutral-800 border border-neutral-700 shadow-2xl group">
-                        <img
-                          src={featuredDropForm.image || 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=1000&q=80'}
-                          alt={featuredDropForm.title || 'Featured Drop'}
-                          className="w-full h-64 sm:h-72 object-cover object-center"
-                          referrerPolicy="no-referrer"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-neutral-950/90 via-transparent to-transparent flex flex-col justify-end p-5">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <span className="text-[10px] uppercase tracking-wider text-emerald-400 font-mono font-semibold">
-                                {featuredDropForm.badgeText || 'Featured Drop'}
-                              </span>
-                              <h3 className="text-base font-bold text-white font-mono leading-tight">
-                                {featuredDropForm.title || 'Product Title'}
-                              </h3>
-                              {featuredDropForm.subtitle && (
-                                <p className="text-[11px] text-neutral-300 mt-0.5">
-                                  {featuredDropForm.subtitle}
-                                </p>
-                              )}
-                            </div>
-                            <div className="text-right shrink-0 ml-3">
-                              <span className="text-base font-black text-white font-mono">
-                                ৳{featuredDropForm.price}
-                              </span>
-                              {featuredDropForm.originalPrice && featuredDropForm.originalPrice > featuredDropForm.price && (
-                                <span className="block text-[10px] text-neutral-400 line-through">
-                                  ৳{featuredDropForm.originalPrice}
+                            {isEditing ? (
+                              <div className="flex items-center gap-2 flex-1 max-w-sm">
+                                <input
+                                  type="text"
+                                  value={editingCategoryValue}
+                                  onChange={(e) => setEditingCategoryValue(e.target.value)}
+                                  className="w-full p-1.5 text-xs bg-white border border-neutral-300 rounded-md focus:outline-hidden"
+                                  autoFocus
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => handleSaveEditedCategory(idx)}
+                                  className="p-1.5 bg-neutral-900 text-white rounded-md text-xs cursor-pointer"
+                                >
+                                  <Check className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingCategoryIndex(null)}
+                                  className="p-1.5 bg-neutral-200 text-neutral-700 rounded-md text-xs cursor-pointer"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-xs sm:text-sm text-neutral-900">{cat}</span>
+                                <span className="text-[11px] text-neutral-500 font-medium bg-neutral-100 px-2 py-0.5 rounded-full">
+                                  {count} item{count !== 1 ? 's' : ''}
                                 </span>
-                              )}
-                            </div>
+                              </div>
+                            )}
                           </div>
+
+                          {!isEditing && (
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingCategoryIndex(idx);
+                                  setEditingCategoryValue(cat);
+                                }}
+                                className="p-1.5 text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100 rounded-md cursor-pointer"
+                                title="Rename Category"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteCategory(cat)}
+                                className="p-1.5 text-neutral-400 hover:text-rose-600 hover:bg-rose-50 rounded-md cursor-pointer"
+                                title="Delete Category"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          )}
                         </div>
-                      </div>
-
-                      <div className="mt-3 text-center">
-                        <p className="text-[11px] text-neutral-400">
-                          {featuredDropForm.enabled
-                            ? '✅ This showcase is currently visible to all visitors on the top Hero section.'
-                            : '⚠️ This showcase is disabled and hidden from the homepage hero banner.'}
-                        </p>
-                      </div>
-                    </div>
+                      );
+                    })}
                   </div>
-
                 </div>
               </div>
             )}
 
-            {/* ==================== TAB 3: STORE & WHATSAPP SETTINGS ==================== */}
-            {activeTab === 'settings' && (
-              <div className="p-4 sm:p-6 overflow-y-auto space-y-6 max-h-[70vh]">
-                {savedSettingsNotice && (
-                  <div className="p-3 bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs font-semibold rounded-xl flex items-center gap-2 animate-fadeIn">
-                    <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>Store settings & WhatsApp numbers saved successfully!</span>
+            {/* ==================== TAB 4: HERO & BANNERS MANAGER ==================== */}
+            {activeTab === 'hero' && (
+              <form onSubmit={handleSaveHeroAndDrop} className="p-4 sm:p-6 overflow-y-auto space-y-6 max-h-[72vh]">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div>
+                    <h3 className="text-sm font-bold text-neutral-900 font-mono">
+                      Hero Banner & Featured Drop Customization
+                    </h3>
+                    <p className="text-[11px] text-neutral-500">
+                      Completely upload, replace, or hide the main homepage Hero Banner and Featured Drop showcase
+                    </p>
+                  </div>
+
+                  {savedHeroNotice && (
+                    <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-lg">
+                      <Check className="w-3.5 h-3.5" /> Saved & Updated Live
+                    </span>
+                  )}
+                </div>
+
+                {/* Master Hero Banner Visibility Toggle */}
+                <div className="bg-neutral-950 text-white p-4 rounded-2xl flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <span className="font-bold text-xs sm:text-sm font-mono flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-emerald-400" /> Homepage Hero Banner Section
+                    </span>
+                    <p className="text-[11px] text-neutral-400">
+                      Toggle to display or completely hide the top hero presentation section on your store homepage.
+                    </p>
+                  </div>
+
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={heroForm.enabled}
+                      onChange={(e) => setHeroForm({ ...heroForm, enabled: e.target.checked })}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-neutral-800 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                  </label>
+                </div>
+
+                {heroForm.enabled && (
+                  <div className="space-y-4">
+                    {/* Hero Text Customization */}
+                    <div className="bg-neutral-50 p-4 rounded-xl border border-neutral-300 space-y-3">
+                      <h4 className="text-xs font-bold text-neutral-700 uppercase tracking-wider">
+                        Hero Headlines & Tagline
+                      </h4>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                        <div>
+                          <label className="block font-semibold text-neutral-700 mb-1">Top Badge Pill</label>
+                          <input
+                            type="text"
+                            value={heroForm.badgeText || ''}
+                            onChange={(e) => setHeroForm({ ...heroForm, badgeText: e.target.value })}
+                            placeholder="e.g. Modern Minimalist Streetwear & Essentials"
+                            className="w-full p-2.5 bg-white border border-neutral-300 rounded-lg text-xs focus:outline-hidden"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block font-semibold text-neutral-700 mb-1">Main Headline</label>
+                          <input
+                            type="text"
+                            value={heroForm.title || ''}
+                            onChange={(e) => setHeroForm({ ...heroForm, title: e.target.value })}
+                            placeholder="e.g. Minimalist Wear."
+                            className="w-full p-2.5 bg-white border border-neutral-300 rounded-lg text-xs focus:outline-hidden font-mono"
+                          />
+                        </div>
+
+                        <div className="sm:col-span-2">
+                          <label className="block font-semibold text-neutral-700 mb-1">Subtitle / Delivery Guarantee</label>
+                          <input
+                            type="text"
+                            value={heroForm.subtitle || ''}
+                            onChange={(e) => setHeroForm({ ...heroForm, subtitle: e.target.value })}
+                            placeholder="e.g. Delivered directly to your doorstep with Fast Delivery."
+                            className="w-full p-2.5 bg-white border border-neutral-300 rounded-lg text-xs focus:outline-hidden"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Featured Drop Showcase Box Customization */}
+                    <div className="bg-neutral-50 p-4 rounded-xl border border-neutral-300 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-xs font-bold text-neutral-700 uppercase tracking-wider">
+                          Featured Drop Visual Showcase Card
+                        </h4>
+
+                        <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={featuredDropForm.enabled}
+                            onChange={(e) => setFeaturedDropForm({ ...featuredDropForm, enabled: e.target.checked })}
+                            className="w-4 h-4 rounded text-neutral-900"
+                          />
+                          <span>Show Drop Card</span>
+                        </label>
+                      </div>
+
+                      {featuredDropForm.enabled && (
+                        <div className="space-y-3">
+                          {/* Quick Link from Existing Product */}
+                          <div className="bg-white p-3 rounded-lg border border-neutral-200">
+                            <label className="block text-xs font-semibold text-neutral-700 mb-1">
+                              Quick Autofill from Catalog Product:
+                            </label>
+                            <select
+                              onChange={(e) => handleSelectProductForDrop(e.target.value)}
+                              value={featuredDropForm.productId || ''}
+                              className="w-full p-2 bg-neutral-50 border border-neutral-300 rounded-lg text-xs focus:outline-hidden cursor-pointer"
+                            >
+                              <option value="">-- Choose a product to feature --</option>
+                              {products.map((p) => (
+                                <option key={p.id} value={p.id}>
+                                  {p.name} ({formatBDT(p.price)})
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                            <div>
+                              <label className="block font-semibold text-neutral-700 mb-1">Featured Card Title</label>
+                              <input
+                                type="text"
+                                value={featuredDropForm.title || ''}
+                                onChange={(e) => setFeaturedDropForm({ ...featuredDropForm, title: e.target.value })}
+                                placeholder="e.g. Heavyweight Boxy Tee"
+                                className="w-full p-2.5 bg-white border border-neutral-300 rounded-lg text-xs focus:outline-hidden"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block font-semibold text-neutral-700 mb-1">Subtitle / Spec</label>
+                              <input
+                                type="text"
+                                value={featuredDropForm.subtitle || ''}
+                                onChange={(e) => setFeaturedDropForm({ ...featuredDropForm, subtitle: e.target.value })}
+                                placeholder="e.g. 220 GSM 100% Combed Cotton"
+                                className="w-full p-2.5 bg-white border border-neutral-300 rounded-lg text-xs focus:outline-hidden"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block font-semibold text-neutral-700 mb-1">Price (৳ BDT)</label>
+                              <input
+                                type="number"
+                                value={featuredDropForm.price || ''}
+                                onChange={(e) => setFeaturedDropForm({ ...featuredDropForm, price: Number(e.target.value) })}
+                                placeholder="550"
+                                className="w-full p-2.5 bg-white border border-neutral-300 rounded-lg text-xs focus:outline-hidden font-mono"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block font-semibold text-neutral-700 mb-1">Badge Text</label>
+                              <input
+                                type="text"
+                                value={featuredDropForm.badgeText || ''}
+                                onChange={(e) => setFeaturedDropForm({ ...featuredDropForm, badgeText: e.target.value })}
+                                placeholder="e.g. Featured Drop"
+                                className="w-full p-2.5 bg-white border border-neutral-300 rounded-lg text-xs focus:outline-hidden"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Image Manager for Drop Card */}
+                          <div className="space-y-2 pt-2 border-t border-neutral-200">
+                            <label className="block text-xs font-semibold text-neutral-700">
+                              Drop Showcase Image:
+                            </label>
+
+                            {featuredDropForm.image ? (
+                              <div className="relative rounded-xl overflow-hidden border border-neutral-300 max-w-xs aspect-video bg-neutral-900">
+                                <img
+                                  src={featuredDropForm.image}
+                                  alt="Featured Drop Preview"
+                                  className="w-full h-full object-cover"
+                                  referrerPolicy="no-referrer"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => setFeaturedDropForm({ ...featuredDropForm, image: '' })}
+                                  className="absolute top-2 right-2 p-1.5 bg-rose-600 text-white rounded-lg hover:bg-rose-700 text-xs flex items-center gap-1 shadow-md cursor-pointer"
+                                  title="Remove image"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                  <span>Remove</span>
+                                </button>
+                              </div>
+                            ) : (
+                              <p className="text-xs text-amber-700 font-medium">No image attached yet. Add an image below.</p>
+                            )}
+
+                            <div className="flex flex-col sm:flex-row gap-2 text-xs pt-1">
+                              <div className="flex-1 flex gap-1.5">
+                                <input
+                                  type="text"
+                                  value={dropImageUrlInput}
+                                  onChange={(e) => setDropImageUrlInput(e.target.value)}
+                                  placeholder="Paste image URL (https://...)"
+                                  className="flex-1 p-2 bg-white border border-neutral-300 rounded-lg text-xs focus:outline-hidden"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={handleAddDropImageUrl}
+                                  className="px-3 py-2 bg-neutral-900 text-white font-semibold rounded-lg hover:bg-neutral-800 cursor-pointer"
+                                >
+                                  Set URL
+                                </button>
+                              </div>
+
+                              <label className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-white border border-neutral-300 rounded-lg font-semibold text-neutral-700 hover:bg-neutral-100 cursor-pointer">
+                                <Upload className="w-3.5 h-3.5" />
+                                <span>Upload File</span>
+                                <input type="file" accept="image/*" onChange={handleFeaturedDropFileUpload} className="hidden" />
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
 
-                {/* Featured Drop Quick Access Card */}
-                <div className="p-4 bg-neutral-900 text-white rounded-2xl border border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-neutral-800 border border-neutral-700 flex items-center justify-center text-emerald-400 shrink-0">
-                      <Sparkles className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <h4 className="text-xs sm:text-sm font-bold font-mono">Homepage Hero Featured Drop</h4>
-                      <p className="text-[11px] text-neutral-400">
-                        {formSettings.featuredDrop?.enabled
-                          ? `Active: "${formSettings.featuredDrop.title}" (৳${formSettings.featuredDrop.price})`
-                          : 'Currently Hidden / Disabled on top banner'}
-                      </p>
-                    </div>
-                  </div>
+                {/* Save button */}
+                <div className="flex items-center justify-end gap-2 pt-3 border-t border-neutral-200">
                   <button
-                    type="button"
-                    onClick={() => setActiveTab('featureddrop')}
-                    className="px-3.5 py-2 bg-white text-neutral-950 hover:bg-neutral-100 rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer shrink-0"
+                    type="submit"
+                    className="px-5 py-2.5 bg-neutral-950 hover:bg-neutral-800 text-white text-xs font-bold rounded-xl shadow-md flex items-center gap-1.5 cursor-pointer"
                   >
-                    Configure Featured Drop →
+                    <Save className="w-4 h-4" />
+                    <span>Save Hero & Banner Changes</span>
                   </button>
                 </div>
+              </form>
+            )}
 
-                <form onSubmit={handleSaveSettings} className="space-y-5">
-                  {/* WhatsApp Ordering Configuration */}
-                  <div className="p-4 bg-emerald-50/60 rounded-2xl border border-emerald-200 space-y-3">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0">
-                          <MessageCircle className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <h4 className="text-xs sm:text-sm font-bold text-emerald-950">
-                            WhatsApp Ordering & Direct Chat Configuration
-                          </h4>
-                          <p className="text-[11px] text-emerald-700">
-                            All 1-click WhatsApp order links, cards, & Floating Chat will route to this number
-                          </p>
-                        </div>
-                      </div>
-
-                      <a
-                        href={testWhatsAppUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold shadow-xs transition-colors shrink-0"
-                      >
-                        <MessageCircle className="w-3.5 h-3.5" />
-                        <span>Test Live Link</span>
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
+            {/* ==================== TAB 5: STORE & DELIVERY SETTINGS ==================== */}
+            {activeTab === 'settings' && (
+              <div className="p-4 sm:p-6 overflow-y-auto space-y-6 max-h-[72vh]">
+                <form onSubmit={handleSaveSettings} className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-sm font-bold text-neutral-900 font-mono">Store & WhatsApp Settings</h3>
+                      <p className="text-[11px] text-neutral-500">
+                        Configure WhatsApp numbers, delivery charges, announcement notice, and city dispatch
+                      </p>
                     </div>
 
-                    {/* Quick Preset Selector Buttons */}
-                    <div className="pt-2 border-t border-emerald-200/80">
-                      <label className="block text-[11px] font-bold text-emerald-950 mb-1.5">
-                        Quick Preset Switcher:
-                      </label>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setFormSettings({
-                              ...formSettings,
-                              whatsappNumber: '8801866068916',
-                              whatsappDisplayNumber: '+880 1866-068916',
-                            });
-                          }}
-                          className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between ${
-                            formSettings.whatsappNumber === '8801866068916'
-                              ? 'border-emerald-600 bg-emerald-600 text-white shadow-xs font-bold'
-                              : 'border-emerald-300 bg-white hover:bg-emerald-100 text-emerald-950'
-                          }`}
-                        >
-                          <div>
-                            <span className="text-xs block font-bold">Primary Number</span>
-                            <span className="text-[11px] font-mono opacity-90">+880 1866-068916</span>
-                          </div>
-                          {formSettings.whatsappNumber === '8801866068916' && (
-                            <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded font-mono">Active</span>
-                          )}
-                        </button>
+                    {savedSettingsNotice && (
+                      <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-lg">
+                        <Check className="w-3.5 h-3.5" /> Saved Live
+                      </span>
+                    )}
+                  </div>
 
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setFormSettings({
-                              ...formSettings,
-                              whatsappNumber: '8801982135000',
-                              whatsappDisplayNumber: '+880 1982-135000',
-                            });
-                          }}
-                          className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between ${
-                            formSettings.whatsappNumber === '8801982135000'
-                              ? 'border-emerald-600 bg-emerald-600 text-white shadow-xs font-bold'
-                              : 'border-emerald-300 bg-white hover:bg-emerald-100 text-emerald-950'
-                          }`}
-                        >
-                          <div>
-                            <span className="text-xs block font-bold">Secondary Number</span>
-                            <span className="text-[11px] font-mono opacity-90">+880 1982-135000</span>
-                          </div>
-                          {formSettings.whatsappNumber === '8801982135000' && (
-                            <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded font-mono">Active</span>
-                          )}
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-1">
+                  <div className="bg-neutral-50 p-4 rounded-xl border border-neutral-300 space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                       <div>
-                        <label className="block font-semibold text-emerald-950 mb-1">
-                          WhatsApp Raw Number (With Country Code) <span className="text-rose-500">*</span>
+                        <label className="block font-semibold text-neutral-700 mb-1">Store Brand Name</label>
+                        <input
+                          type="text"
+                          required
+                          value={formSettings.storeName}
+                          onChange={(e) => setFormSettings({ ...formSettings, storeName: e.target.value })}
+                          className="w-full p-2.5 bg-white border border-neutral-300 rounded-lg text-xs font-bold font-mono"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block font-semibold text-neutral-700 mb-1">City / Base Location</label>
+                        <input
+                          type="text"
+                          required
+                          value={formSettings.city}
+                          onChange={(e) => setFormSettings({ ...formSettings, city: e.target.value })}
+                          className="w-full p-2.5 bg-white border border-neutral-300 rounded-lg text-xs"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block font-semibold text-neutral-700 mb-1">
+                          WhatsApp Number (International format e.g. 8801866068916)
                         </label>
                         <input
                           type="text"
                           required
                           value={formSettings.whatsappNumber}
                           onChange={(e) => setFormSettings({ ...formSettings, whatsappNumber: e.target.value })}
-                          placeholder="8801866068916"
-                          className="w-full p-2.5 bg-white border border-emerald-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-emerald-600 font-mono text-xs"
-                        />
-                        <span className="text-[10px] text-emerald-800 mt-1 block font-mono">
-                          Live wa.me route: https://wa.me/{cleanPhoneForWhatsApp(formSettings.whatsappNumber)}
-                        </span>
-                      </div>
-
-                      <div>
-                        <label className="block font-semibold text-emerald-950 mb-1">
-                          WhatsApp Friendly Display Number <span className="text-rose-500">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          value={formSettings.whatsappDisplayNumber}
-                          onChange={(e) => setFormSettings({ ...formSettings, whatsappDisplayNumber: e.target.value })}
-                          placeholder="+880 1866-068916"
-                          className="w-full p-2.5 bg-white border border-emerald-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-emerald-600 font-mono text-xs"
-                        />
-                        <span className="text-[10px] text-emerald-800 mt-1 block">
-                          Shown on site header, footer, & contact buttons
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* General Store Details */}
-                  <div className="space-y-3">
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-500">
-                      Store Branding & Location
-                    </h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                      <div>
-                        <label className="block font-semibold text-neutral-700 mb-1">Store Name</label>
-                        <input
-                          type="text"
-                          required
-                          value={formSettings.storeName}
-                          onChange={(e) => setFormSettings({ ...formSettings, storeName: e.target.value })}
-                          className="w-full p-2.5 bg-neutral-50 border border-neutral-300 rounded-lg focus:bg-white"
+                          className="w-full p-2.5 bg-white border border-neutral-300 rounded-lg text-xs font-mono"
                         />
                       </div>
 
-                      <div>
-                        <label className="block font-semibold text-neutral-700 mb-1">Tagline</label>
-                        <input
-                          type="text"
-                          value={formSettings.tagline}
-                          onChange={(e) => setFormSettings({ ...formSettings, tagline: e.target.value })}
-                          className="w-full p-2.5 bg-neutral-50 border border-neutral-300 rounded-lg focus:bg-white"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block font-semibold text-neutral-700 mb-1">Service City / Thana</label>
-                        <input
-                          type="text"
-                          required
-                          value={formSettings.city}
-                          onChange={(e) => setFormSettings({ ...formSettings, city: e.target.value })}
-                          className="w-full p-2.5 bg-neutral-50 border border-neutral-300 rounded-lg focus:bg-white"
-                        />
-                      </div>
-
-                      <div className="sm:col-span-3">
-                        <label className="block font-semibold text-neutral-700 mb-1">
-                          Store / Pickup Point Address
-                        </label>
-                        <input
-                          type="text"
-                          value={formSettings.storeAddress}
-                          onChange={(e) => setFormSettings({ ...formSettings, storeAddress: e.target.value })}
-                          className="w-full p-2.5 bg-neutral-50 border border-neutral-300 rounded-lg focus:bg-white"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Delivery Charges & Thresholds */}
-                  <div className="space-y-3 pt-3 border-t border-neutral-200">
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-500">
-                      Delivery Pricing & Promises
-                    </h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
                       <div>
                         <label className="block font-semibold text-neutral-700 mb-1">
-                          Inside {formSettings.city} COD Fee (৳)
+                          WhatsApp Display Phone (e.g. +880 1866-068916)
+                        </label>
+                        <div className="flex gap-1.5">
+                          <input
+                            type="text"
+                            required
+                            value={formSettings.whatsappDisplayNumber}
+                            onChange={(e) => setFormSettings({ ...formSettings, whatsappDisplayNumber: e.target.value })}
+                            className="flex-1 p-2.5 bg-white border border-neutral-300 rounded-lg text-xs font-mono"
+                          />
+                          <a
+                            href={testWhatsAppUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer"
+                            title="Test WhatsApp Link"
+                          >
+                            <MessageCircle className="w-3.5 h-3.5" />
+                            <span>Test</span>
+                          </a>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block font-semibold text-neutral-700 mb-1">
+                          Inside {formSettings.city} Delivery Fee (৳ BDT)
                         </label>
                         <input
                           type="number"
                           required
                           value={formSettings.insideCityDeliveryFee}
                           onChange={(e) => setFormSettings({ ...formSettings, insideCityDeliveryFee: Number(e.target.value) })}
-                          className="w-full p-2.5 bg-neutral-50 border border-neutral-300 rounded-lg focus:bg-white font-mono"
+                          className="w-full p-2.5 bg-white border border-neutral-300 rounded-lg text-xs font-mono"
                         />
                       </div>
 
                       <div>
                         <label className="block font-semibold text-neutral-700 mb-1">
-                          Outside / Remote Union COD Fee (৳)
+                          Outside City / Nationwide Delivery Fee (৳ BDT)
                         </label>
                         <input
                           type="number"
                           required
                           value={formSettings.outsideCityDeliveryFee}
                           onChange={(e) => setFormSettings({ ...formSettings, outsideCityDeliveryFee: Number(e.target.value) })}
-                          className="w-full p-2.5 bg-neutral-50 border border-neutral-300 rounded-lg focus:bg-white font-mono"
+                          className="w-full p-2.5 bg-white border border-neutral-300 rounded-lg text-xs font-mono"
                         />
                       </div>
 
                       <div>
                         <label className="block font-semibold text-neutral-700 mb-1">
-                          Free Delivery Threshold (৳)
+                          Free Delivery Threshold (৳ BDT)
                         </label>
                         <input
                           type="number"
                           required
                           value={formSettings.freeDeliveryThreshold}
                           onChange={(e) => setFormSettings({ ...formSettings, freeDeliveryThreshold: Number(e.target.value) })}
-                          className="w-full p-2.5 bg-neutral-50 border border-neutral-300 rounded-lg focus:bg-white font-mono"
+                          className="w-full p-2.5 bg-white border border-neutral-300 rounded-lg text-xs font-mono"
                         />
                       </div>
 
-                      <div className="sm:col-span-3">
-                        <label className="block font-semibold text-neutral-700 mb-1">
-                          Top Announcement Promo Banner
-                        </label>
+                      <div>
+                        <label className="block font-semibold text-neutral-700 mb-1">Store Dispatch Address</label>
+                        <input
+                          type="text"
+                          value={formSettings.storeAddress}
+                          onChange={(e) => setFormSettings({ ...formSettings, storeAddress: e.target.value })}
+                          className="w-full p-2.5 bg-white border border-neutral-300 rounded-lg text-xs"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-2">
+                        <label className="block font-semibold text-neutral-700 mb-1">Top Announcement Notice Bar</label>
                         <input
                           type="text"
                           value={formSettings.bannerNotice}
                           onChange={(e) => setFormSettings({ ...formSettings, bannerNotice: e.target.value })}
-                          className="w-full p-2.5 bg-neutral-50 border border-neutral-300 rounded-lg focus:bg-white"
+                          className="w-full p-2.5 bg-white border border-neutral-300 rounded-lg text-xs"
                         />
                       </div>
                     </div>
-                  </div>
 
-                  <div className="flex items-center justify-end pt-2">
-                    <button
-                      type="submit"
-                      className="inline-flex items-center gap-1.5 px-6 py-2.5 bg-neutral-950 hover:bg-neutral-800 text-white text-xs font-bold rounded-xl transition-all shadow-md"
-                    >
-                      <Save className="w-4 h-4" />
-                      <span>Save General Settings</span>
-                    </button>
+                    <div className="flex justify-end pt-2">
+                      <button
+                        type="submit"
+                        className="px-5 py-2.5 bg-neutral-950 hover:bg-neutral-800 text-white text-xs font-bold rounded-xl shadow-sm flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Save className="w-4 h-4" />
+                        <span>Save Store Settings</span>
+                      </button>
+                    </div>
                   </div>
                 </form>
 
-                {/* Change Admin Password Section */}
-                <div className="p-4 bg-neutral-50 rounded-2xl border border-neutral-200 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <KeyRound className="w-4 h-4 text-neutral-800" />
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-800">
-                      Change Admin Login Password
-                    </h4>
-                  </div>
+                {/* Password Change Box */}
+                <form onSubmit={handlePasswordChangeSubmit} className="bg-neutral-50 p-4 rounded-xl border border-neutral-300 space-y-3">
+                  <h4 className="text-xs font-bold text-neutral-700 uppercase tracking-wider flex items-center gap-1.5">
+                    <KeyRound className="w-3.5 h-3.5 text-neutral-600" />
+                    <span>Change Admin Password</span>
+                  </h4>
 
-                  {passwordChangeSuccess && (
-                    <div className="p-2.5 bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs font-semibold rounded-lg flex items-center gap-2">
-                      <CheckCircle className="w-4 h-4 text-emerald-600" />
-                      <span>Admin password changed successfully!</span>
-                    </div>
-                  )}
-
-                  {passwordChangeError && (
-                    <div className="p-2.5 bg-rose-50 border border-rose-300 text-rose-800 text-xs font-semibold rounded-lg flex items-center gap-2">
-                      <AlertCircle className="w-4 h-4 text-rose-600" />
-                      <span>{passwordChangeError}</span>
-                    </div>
-                  )}
-
-                  <form onSubmit={handlePasswordChangeSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                     <div>
-                      <label className="block font-semibold text-neutral-700 mb-1">
-                        Current Admin Password
-                      </label>
+                      <label className="block font-semibold text-neutral-700 mb-1">Current Password</label>
                       <input
                         type="password"
                         required
                         value={currentPasswordConfirm}
                         onChange={(e) => setCurrentPasswordConfirm(e.target.value)}
-                        placeholder="Enter current password..."
-                        className="w-full p-2.5 bg-white border border-neutral-300 rounded-lg focus:ring-2 focus:ring-neutral-900"
+                        placeholder="Current admin password"
+                        className="w-full p-2 bg-white border border-neutral-300 rounded-lg text-xs font-mono focus:outline-hidden"
                       />
                     </div>
 
                     <div>
-                      <label className="block font-semibold text-neutral-700 mb-1">
-                        New Admin Password
-                      </label>
+                      <label className="block font-semibold text-neutral-700 mb-1">New Password (min. 6 chars)</label>
                       <input
                         type="password"
                         required
                         value={newAdminPassword}
                         onChange={(e) => setNewAdminPassword(e.target.value)}
-                        placeholder="Enter new password (min 6 chars)..."
-                        className="w-full p-2.5 bg-white border border-neutral-300 rounded-lg focus:ring-2 focus:ring-neutral-900"
+                        placeholder="Enter new password"
+                        className="w-full p-2 bg-white border border-neutral-300 rounded-lg text-xs font-mono focus:outline-hidden"
                       />
                     </div>
-
-                    <div className="sm:col-span-2 flex justify-end">
-                      <button
-                        type="submit"
-                        className="px-4 py-2 bg-neutral-900 hover:bg-neutral-800 text-white text-xs font-bold rounded-lg transition-colors"
-                      >
-                        Update Admin Password
-                      </button>
-                    </div>
-                  </form>
-                </div>
-
-                {/* Reset Data Button */}
-                <div className="pt-4 border-t border-neutral-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="text-xs text-neutral-500">
-                    Need to restore standard store catalog and baseline settings?
                   </div>
+
+                  {passwordChangeError && (
+                    <p className="text-xs text-rose-600 font-medium">{passwordChangeError}</p>
+                  )}
+                  {passwordChangeSuccess && (
+                    <p className="text-xs text-emerald-600 font-medium">✓ Admin password updated successfully!</p>
+                  )}
+
+                  <div className="flex justify-end pt-1">
+                    <button
+                      type="submit"
+                      className="px-4 py-2 bg-neutral-900 hover:bg-neutral-800 text-white text-xs font-semibold rounded-lg cursor-pointer"
+                    >
+                      Update Password
+                    </button>
+                  </div>
+                </form>
+
+                {/* Reset Data Box */}
+                <div className="bg-rose-50/70 p-4 rounded-xl border border-rose-200 space-y-2">
+                  <h4 className="text-xs font-bold text-rose-900 uppercase tracking-wider">
+                    Danger Zone: Reset Store Data
+                  </h4>
+                  <p className="text-xs text-rose-700">
+                    Reset all products, settings, and orders back to the initial CrownBorn catalogue.
+                  </p>
+
                   {showResetConfirm ? (
-                    <div className="flex items-center gap-2 bg-rose-50 border border-rose-200 p-2 rounded-xl">
-                      <span className="text-xs font-bold text-rose-800">Reset all store data?</span>
+                    <div className="flex items-center gap-2 pt-2">
                       <button
                         type="button"
                         onClick={() => {
                           onResetDemoData();
                           setShowResetConfirm(false);
                         }}
-                        className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold shadow-xs cursor-pointer"
+                        className="px-4 py-2 bg-rose-600 text-white text-xs font-bold rounded-lg hover:bg-rose-700 cursor-pointer"
                       >
-                        Yes, Reset
+                        Yes, Reset Everything
                       </button>
                       <button
                         type="button"
                         onClick={() => setShowResetConfirm(false)}
-                        className="px-2 py-1 bg-neutral-200 hover:bg-neutral-300 text-neutral-800 rounded-lg text-xs font-semibold cursor-pointer"
+                        className="px-3 py-2 bg-neutral-200 text-neutral-700 text-xs font-semibold rounded-lg cursor-pointer"
                       >
                         Cancel
                       </button>
@@ -2091,10 +1952,9 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                     <button
                       type="button"
                       onClick={() => setShowResetConfirm(true)}
-                      className="inline-flex items-center gap-1.5 text-xs text-rose-600 hover:text-rose-800 font-semibold px-3 py-1.5 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
+                      className="px-3.5 py-2 bg-rose-100 hover:bg-rose-200 text-rose-800 text-xs font-bold rounded-lg border border-rose-300 transition-colors cursor-pointer"
                     >
-                      <RotateCcw className="w-3.5 h-3.5" />
-                      <span>Reset Store Catalog</span>
+                      Reset Store to Initial Data
                     </button>
                   )}
                 </div>

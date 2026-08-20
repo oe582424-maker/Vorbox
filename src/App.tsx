@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Product, CartItem, Order, StoreSettings } from './types';
-import { INITIAL_PRODUCTS, DEFAULT_STORE_SETTINGS } from './data/defaultData';
+import { INITIAL_PRODUCTS, DEFAULT_STORE_SETTINGS, DEFAULT_CATEGORIES } from './data/defaultData';
 import { api } from './services/api';
 import { TopNoticeBar } from './components/TopNoticeBar';
 import { Navbar } from './components/Navbar';
@@ -16,15 +16,6 @@ import { AdminModal } from './components/AdminModal';
 import { Footer } from './components/Footer';
 import { FloatingWhatsAppWidget } from './components/FloatingWhatsAppWidget';
 import { ShoppingBag, Truck, ShieldCheck, RefreshCw } from 'lucide-react';
-
-const CATEGORIES = [
-  'All Collections',
-  'T-Shirts',
-  'Polos',
-  'Panjabis',
-  'Hoodies & Sweats',
-  'Pants & Bottoms',
-];
 
 export default function App() {
   // 1. Settings State (Loaded with localStorage fallback)
@@ -298,14 +289,18 @@ export default function App() {
     await api.resetStoreData();
   };
 
+  // Dynamic Categories derived from settings
+  const dynamicCategories = useMemo(() => {
+    const customList = settings.categories && settings.categories.length > 0 ? settings.categories : DEFAULT_CATEGORIES;
+    return ['All Collections', ...customList];
+  }, [settings.categories]);
+
   // Filtered and Sorted products list
   const filteredProducts = useMemo(() => {
     return products
       .filter((p) => {
         // Category filter
         if (selectedCategory !== 'All Collections') {
-          if (selectedCategory === 'Hoodies & Sweats' && p.category !== 'Hoodies & Sweats') return false;
-          if (selectedCategory === 'Pants & Bottoms' && p.category !== 'Pants & Bottoms') return false;
           if (p.category !== selectedCategory) return false;
         }
         return true;
@@ -359,7 +354,7 @@ export default function App() {
       <main id="catalog-section" ref={productSectionRef} className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
         {/* Category Filters and Sorting */}
         <CategoryFilters
-          categories={CATEGORIES}
+          categories={dynamicCategories}
           selectedCategory={selectedCategory}
           onSelectCategory={setSelectedCategory}
           sortBy={sortBy}
@@ -394,6 +389,7 @@ export default function App() {
                 cart={cart}
                 onOpenProductModal={(p) => setSelectedProduct(p)}
                 onQuickAddToCart={(p, sz, clr) => handleAddToCart(p, sz, clr, 1)}
+                onRemoveFromCart={handleRemoveFromCart}
                 onOrderViaWhatsApp={(p, sz, clr) => handleBuyNowCOD(p, sz, clr, 1)}
               />
             ))}
@@ -459,6 +455,7 @@ export default function App() {
         cart={cart}
         onClose={() => setSelectedProduct(null)}
         onAddToCart={(p, sz, clr, qty) => handleAddToCart(p, sz, clr, qty)}
+        onRemoveFromCart={handleRemoveFromCart}
         onOpenSizeGuide={() => setIsSizeGuideOpen(true)}
         onBuyNowCOD={handleBuyNowCOD}
       />

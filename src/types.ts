@@ -1,7 +1,7 @@
 export interface Product {
   id: string;
   name: string;
-  category: 'T-Shirts' | 'Polos' | 'Hoodies & Sweats' | 'Panjabis' | 'Pants & Bottoms';
+  category: string;
   price: number;
   originalPrice?: number;
   description: string;
@@ -68,12 +68,22 @@ export interface FeaturedDrop {
   productId?: string;
 }
 
+export interface HeroSettings {
+  enabled: boolean;
+  badgeText?: string;
+  title?: string;
+  subtitle?: string;
+  description?: string;
+  imageUrl?: string;
+  showDropCard?: boolean;
+}
+
 export interface StoreSettings {
   storeName: string;
   tagline: string;
   city: string;
-  whatsappNumber: string; // E.g. '8801700000000'
-  whatsappDisplayNumber: string; // E.g. '+880 1700-000000'
+  whatsappNumber: string; // E.g. '8801866068916'
+  whatsappDisplayNumber: string; // E.g. '+880 1866-068916'
   insideCityDeliveryFee: number;
   outsideCityDeliveryFee: number;
   freeDeliveryThreshold: number;
@@ -81,4 +91,7 @@ export interface StoreSettings {
   storeAddress: string;
   adminPassword?: string;
   featuredDrop?: FeaturedDrop | null;
+  categories?: string[];
+  showHeroBanner?: boolean;
+  heroSettings?: HeroSettings;
 }

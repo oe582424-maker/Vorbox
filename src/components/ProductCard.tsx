@@ -9,6 +9,7 @@ interface ProductCardProps {
   cart?: CartItem[];
   onOpenProductModal: (product: Product) => void;
   onQuickAddToCart: (product: Product, size: 'S' | 'M' | 'L' | 'XL' | 'XXL', color: { name: string; hex: string }) => void;
+  onRemoveFromCart?: (comboId: string) => void;
   onOrderViaWhatsApp: (product: Product, size: 'S' | 'M' | 'L' | 'XL' | 'XXL', color: { name: string; hex: string }) => void;
 }
 
@@ -18,6 +19,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   cart = [],
   onOpenProductModal,
   onQuickAddToCart,
+  onRemoveFromCart,
   onOrderViaWhatsApp,
 }) => {
   const [selectedSize, setSelectedSize] = useState<'S' | 'M' | 'L' | 'XL' | 'XXL'>(product.sizes[0] || 'M');
@@ -33,7 +35,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
   const handleQuickAdd = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onQuickAddToCart(product, selectedSize, selectedColor);
+    const comboId = `${product.id}-${selectedSize}-${selectedColor.name}`;
+    if (isInCart && onRemoveFromCart) {
+      onRemoveFromCart(comboId);
+    } else {
+      onQuickAddToCart(product, selectedSize, selectedColor);
+    }
   };
 
   const handleWhatsAppOrderClick = (e: React.MouseEvent) => {

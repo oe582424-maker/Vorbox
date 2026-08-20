@@ -11,6 +11,14 @@ export const DEFAULT_FEATURED_DROP: FeaturedDrop = {
   productId: 'vb-101',
 };
 
+export const DEFAULT_CATEGORIES: string[] = [
+  'T-Shirts',
+  'Polos',
+  'Panjabis',
+  'Hoodies & Sweats',
+  'Pants & Bottoms',
+];
+
 export const DEFAULT_STORE_SETTINGS: StoreSettings = {
   storeName: 'CROWNBORN',
   tagline: 'Minimalist & Everyday Streetwear',
@@ -24,6 +32,16 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
   storeAddress: 'Rangpur, Bangladesh',
   adminPassword: 'akm125@#155Ab12*',
   featuredDrop: DEFAULT_FEATURED_DROP,
+  categories: DEFAULT_CATEGORIES,
+  showHeroBanner: true,
+  heroSettings: {
+    enabled: true,
+    badgeText: 'Modern Minimalist Streetwear & Essentials',
+    title: 'Minimalist Wear.',
+    subtitle: 'Delivered directly to your doorstep with Fast Delivery.',
+    description: 'Premium 100% combed cotton t-shirts, refined polos, signature panjabis, and everyday street fits. Zero hassle ordering with Cash on Delivery and instant 1-Click WhatsApp confirmation.',
+    showDropCard: true,
+  },
 };
 
 export const SUNDARGANJ_DELIVERY_AREAS = [

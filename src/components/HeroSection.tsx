@@ -10,12 +10,27 @@ interface HeroSectionProps {
 }
 
 export const HeroSection: React.FC<HeroSectionProps> = ({ settings, onExploreClick, onFeaturedDropClick }) => {
+  // If hero banner is disabled in settings, do not render
+  if (settings.showHeroBanner === false || (settings.heroSettings && settings.heroSettings.enabled === false)) {
+    return null;
+  }
+
   const whatsappConsultUrl = `https://wa.me/${cleanPhoneForWhatsApp(settings.whatsappNumber)}?text=${encodeURIComponent(
     `Hello ${settings.storeName}! I want to know about your latest clothing collection.`
   )}`;
 
   const drop = settings.featuredDrop;
   const isDropActive = Boolean(drop && drop.enabled && drop.image);
+  const heroBadge = settings.heroSettings?.badgeText || 'Modern Minimalist Streetwear & Essentials';
+  const heroTitle = settings.heroSettings?.title || 'Minimalist Wear.';
+  const heroSubtitle = settings.heroSettings?.subtitle || 'Delivered directly to your doorstep with Fast Delivery.';
+  const heroDescription = settings.heroSettings?.description || (
+    <>
+      Premium 100% combed cotton t-shirts, refined polos, signature panjabis, and everyday street fits. Zero hassle ordering with{' '}
+      <strong className="text-white font-medium">Cash on Delivery</strong> and instant{' '}
+      <strong className="text-emerald-400 font-medium">1-Click WhatsApp confirmation</strong>.
+    </>
+  );
 
   return (
     <section id="hero-section" className="relative bg-neutral-900 text-white overflow-hidden">
@@ -29,19 +44,18 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ settings, onExploreCli
           <div className={`${isDropActive ? 'lg:col-span-7' : 'w-full'} flex flex-col items-start space-y-5 sm:space-y-6 text-left`}>
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-neutral-800/90 border border-neutral-700 text-neutral-300 text-xs font-medium tracking-wide">
               <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Modern Minimalist Streetwear & Essentials</span>
+              <span>{heroBadge}</span>
             </div>
 
             <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white font-mono uppercase leading-tight">
-              Minimalist Wear.<br />
+              {heroTitle}<br />
               <span className="text-neutral-400 font-sans normal-case font-normal text-2xl sm:text-4xl block mt-1">
-                Delivered directly to your doorstep with Fast Delivery.
+                {heroSubtitle}
               </span>
             </h1>
 
             <p className="text-sm sm:text-base text-neutral-300 max-w-xl font-normal leading-relaxed">
-              Premium 100% combed cotton t-shirts, refined polos, signature panjabis, and everyday street fits. Zero hassle ordering with 
-              <strong className="text-white font-medium"> Cash on Delivery</strong> and instant <strong className="text-emerald-400 font-medium">1-Click WhatsApp confirmation</strong>.
+              {typeof heroDescription === 'string' ? heroDescription : heroDescription}
             </p>
 
             {/* Action Buttons */}

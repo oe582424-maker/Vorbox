@@ -52,19 +52,37 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span>Size Guide</span>
             </button>
 
-            {/* Cart Drawer Trigger */}
+            {/* Cart Drawer Trigger - High Visibility Design */}
             <button
               id="cart-drawer-trigger-btn"
               onClick={onOpenCart}
-              className="relative inline-flex items-center gap-2 px-3.5 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-white bg-neutral-900 hover:bg-neutral-800 rounded-full transition-all active:scale-95 shadow-sm"
-              aria-label="Open Shopping Bag"
+              className={`relative inline-flex items-center justify-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 min-h-[42px] sm:min-h-[44px] rounded-full transition-all duration-200 active:scale-95 cursor-pointer shadow-sm ${
+                cartCount > 0
+                  ? 'bg-neutral-950 text-white ring-2 ring-emerald-500/80 shadow-emerald-500/20 shadow-md hover:bg-neutral-900'
+                  : 'bg-neutral-900 text-white hover:bg-neutral-800'
+              }`}
+              aria-label={`Open Shopping Bag with ${cartCount} items`}
             >
-              <ShoppingBag className="w-4 h-4" />
-              <span className="hidden sm:inline">Bag</span>
+              {/* Glowing active dot when cart has items */}
+              {cartCount > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-500 border-2 border-white" />
+                </span>
+              )}
+
+              <div className="relative">
+                <ShoppingBag className={`w-4 h-4 sm:w-5 sm:h-5 ${cartCount > 0 ? 'text-emerald-400' : 'text-white'}`} />
+              </div>
+
+              <span className="font-bold text-xs sm:text-sm tracking-tight">Bag</span>
+
               <span
                 id="cart-count-badge"
-                className={`flex items-center justify-center min-w-[20px] h-5 px-1 text-[11px] font-bold rounded-full ${
-                  cartCount > 0 ? 'bg-emerald-500 text-white' : 'bg-neutral-700 text-neutral-300'
+                className={`flex items-center justify-center min-w-[22px] h-[22px] px-1.5 text-[11px] sm:text-xs font-black rounded-full transition-transform ${
+                  cartCount > 0
+                    ? 'bg-emerald-500 text-white shadow-xs scale-105'
+                    : 'bg-neutral-800 text-neutral-300'
                 }`}
               >
                 {cartCount}

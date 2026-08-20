@@ -14,6 +14,7 @@ interface ProductModalProps {
     color: { name: string; hex: string },
     quantity: number
   ) => void;
+  onRemoveFromCart?: (comboId: string) => void;
   onOpenSizeGuide: () => void;
   onBuyNowCOD: (
     product: Product,
@@ -29,6 +30,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
   cart = [],
   onClose,
   onAddToCart,
+  onRemoveFromCart,
   onOpenSizeGuide,
   onBuyNowCOD,
 }) => {
@@ -49,9 +51,15 @@ export const ProductModal: React.FC<ProductModalProps> = ({
   );
 
   const handleAddToCart = () => {
-    onAddToCart(product, selectedSize, selectedColor, quantity);
-    setShowAddedNotice(true);
-    setTimeout(() => setShowAddedNotice(false), 2000);
+    const comboId = `${product.id}-${selectedSize}-${selectedColor.name}`;
+    if (isInCart && onRemoveFromCart) {
+      onRemoveFromCart(comboId);
+      setShowAddedNotice(false);
+    } else {
+      onAddToCart(product, selectedSize, selectedColor, quantity);
+      setShowAddedNotice(true);
+      setTimeout(() => setShowAddedNotice(false), 2000);
+    }
   };
 
   const handleBuyNow = () => {
