@@ -39,6 +39,16 @@ const DEFAULT_STORE_SETTINGS = {
   storeAddress: 'Rangpur, Bangladesh',
   adminPassword: 'akm125@#155Ab12*',
   featuredDrop: DEFAULT_FEATURED_DROP,
+  categories: ['T-Shirts', 'Polos', 'Panjabis', 'Hoodies & Sweats', 'Pants & Bottoms'],
+  showHeroBanner: true,
+  heroSettings: {
+    enabled: true,
+    badgeText: 'Modern Minimalist Streetwear & Essentials',
+    title: 'Minimalist Wear.',
+    subtitle: 'Delivered directly to your doorstep with Fast Delivery.',
+    description: 'Premium 100% combed cotton t-shirts, refined polos, signature panjabis, and everyday street fits. Zero hassle ordering with Cash on Delivery and instant 1-Click WhatsApp confirmation.',
+    showDropCard: true,
+  },
 };
 
 const INITIAL_PRODUCTS = [
@@ -302,6 +312,9 @@ function loadDatabase(): StoreDbStructure {
           ...DEFAULT_STORE_SETTINGS,
           ...(data.settings || {}),
           featuredDrop: data.settings?.featuredDrop || DEFAULT_FEATURED_DROP,
+          heroSettings: data.settings?.heroSettings
+            ? { ...DEFAULT_STORE_SETTINGS.heroSettings, ...data.settings.heroSettings }
+            : DEFAULT_STORE_SETTINGS.heroSettings,
         },
         orders: Array.isArray(data.orders) ? data.orders : [],
         lastUpdated: data.lastUpdated || Date.now(),

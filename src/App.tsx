@@ -11,7 +11,6 @@ import { ProductModal } from './components/ProductModal';
 import { CartDrawer } from './components/CartDrawer';
 import { CheckoutModal } from './components/CheckoutModal';
 import { QuickOrderModal } from './components/QuickOrderModal';
-import { OrderConfirmationModal } from './components/OrderConfirmationModal';
 import { SizeGuideModal } from './components/SizeGuideModal';
 import { AdminModal } from './components/AdminModal';
 import { Footer } from './components/Footer';
@@ -19,36 +18,11 @@ import { FloatingWhatsAppWidget } from './components/FloatingWhatsAppWidget';
 import { ShoppingBag, Truck, ShieldCheck, RefreshCw } from 'lucide-react';
 
 export default function App() {
-  // 1. Settings State (Loaded with localStorage fallback)
-  const [settings, setSettings] = useState<StoreSettings>(() => {
-    const saved = localStorage.getItem('crownborn_settings') || localStorage.getItem('vbox_settings') || localStorage.getItem('vorbox_settings');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        return {
-          ...DEFAULT_STORE_SETTINGS,
-          ...parsed,
-          adminPassword: parsed.adminPassword || DEFAULT_STORE_SETTINGS.adminPassword,
-        };
-      } catch (e) {
-        console.error(e);
-      }
-    }
-    return DEFAULT_STORE_SETTINGS;
-  });
+  // 1. Settings State (Loaded directly from central database/API, default baseline initial)
+  const [settings, setSettings] = useState<StoreSettings>(DEFAULT_STORE_SETTINGS);
 
-  // 2. Products State
-  const [products, setProducts] = useState<Product[]>(() => {
-    const saved = localStorage.getItem('crownborn_products') || localStorage.getItem('vbox_products') || localStorage.getItem('vorbox_products');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error(e);
-      }
-    }
-    return INITIAL_PRODUCTS;
-  });
+  // 2. Products State (Loaded directly from central database/API)
+  const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
 
   // 3. User-Specific Cart State (Strictly Local Browser Storage Only - Never synced to backend)
   const [cart, setCart] = useState<CartItem[]>(() => {
@@ -64,17 +38,7 @@ export default function App() {
   });
 
   // 4. Orders State (Real customer orders only)
-  const [orders, setOrders] = useState<Order[]>(() => {
-    const saved = localStorage.getItem('crownborn_orders') || localStorage.getItem('vbox_orders') || localStorage.getItem('vorbox_orders');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error(e);
-      }
-    }
-    return [];
-  });
+  const [orders, setOrders] = useState<Order[]>([]);
 
   // Filters
   const [selectedCategory, setSelectedCategory] = useState('All Collections');
@@ -92,27 +56,35 @@ export default function App() {
   const [quickOrderInitialStep, setQuickOrderInitialStep] = useState<1 | 2>(1);
   const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
-  const [confirmedOrder, setConfirmedOrder] = useState<Order | null>(null);
 
   const productSectionRef = useRef<HTMLDivElement>(null);
   const isSyncingRef = useRef(false);
 
-  // Sync to LocalStorage as instant local cache
+  // Clean up any legacy settings/products from localStorage so visitor browsers NEVER see stale local overrides
   useEffect(() => {
-    localStorage.setItem('crownborn_settings', JSON.stringify(settings));
-  }, [settings]);
+    try {
+      localStorage.removeItem('crownborn_settings');
+      localStorage.removeItem('crownborn_products');
+      localStorage.removeItem('crownborn_orders');
+      localStorage.removeItem('vbox_settings');
+      localStorage.removeItem('vbox_products');
+      localStorage.removeItem('vbox_orders');
+      localStorage.removeItem('vorbox_settings');
+      localStorage.removeItem('vorbox_products');
+      localStorage.removeItem('vorbox_orders');
+    } catch (e) {
+      // ignore
+    }
+  }, []);
 
+  // Sync ONLY user-specific shopping cart to localStorage
   useEffect(() => {
-    localStorage.setItem('crownborn_products', JSON.stringify(products));
-  }, [products]);
-
-  useEffect(() => {
-    localStorage.setItem('crownborn_cart', JSON.stringify(cart));
+    try {
+      localStorage.setItem('crownborn_cart', JSON.stringify(cart));
+    } catch (e) {
+      console.error('Error saving local cart:', e);
+    }
   }, [cart]);
-
-  useEffect(() => {
-    localStorage.setItem('crownborn_orders', JSON.stringify(orders));
-  }, [orders]);
 
   // Real-time multi-device synchronization engine
   const fetchLatestStoreData = useCallback(async () => {
@@ -146,12 +118,12 @@ export default function App() {
   useEffect(() => {
     fetchLatestStoreData();
 
-    // Poll every 5 seconds for instant multi-device synchronization
+    // Poll every 3 seconds for instant real-time multi-device synchronization
     const interval = setInterval(() => {
       fetchLatestStoreData();
-    }, 5000);
+    }, 3000);
 
-    // Also sync on window focus or tab visibility change
+    // Also sync immediately on window focus or tab visibility change
     const onVisibilityOrFocus = () => {
       if (document.visibilityState === 'visible') {
         fetchLatestStoreData();
@@ -262,22 +234,19 @@ export default function App() {
     setQuickOrderInitialStep(2); // Directly opens Step 2: Delivery Details
   };
 
-  // Quick Order Submission (keeps persistent shopping bag intact)
+  // Quick Order Submission (saves order to backend and navigates to WhatsApp)
   const handleQuickOrderSuccess = async (order: Order) => {
     setOrders((prev) => [order, ...prev]);
     setQuickOrderProduct(null);
-    setConfirmedOrder(order);
     await api.createOrder(order);
   };
 
-  // Cart Drawer Checkout submission (clears persistent cart)
+  // Cart Drawer Checkout submission (clears persistent cart, saves order, navigates to WhatsApp)
   const handleCartOrderSuccess = async (order: Order) => {
     setOrders((prev) => [order, ...prev]);
     setCart([]);
     setIsCheckoutOpen(false);
     setIsCartOpen(false);
-    setConfirmedOrder(order);
-    // Persist to backend
     await api.createOrder(order);
   };
 
@@ -298,6 +267,7 @@ export default function App() {
   const handleAddProduct = async (newProd: Product) => {
     setProducts((prev) => [newProd, ...prev]);
     await api.createProduct(newProd);
+    await fetchLatestStoreData();
   };
 
   const handleUpdateProduct = async (updatedProd: Product) => {
@@ -305,16 +275,19 @@ export default function App() {
       prev.map((p) => (p.id === updatedProd.id ? updatedProd : p))
     );
     await api.updateProduct(updatedProd);
+    await fetchLatestStoreData();
   };
 
   const handleDeleteProduct = async (productId: string) => {
     setProducts((prev) => prev.filter((p) => p.id !== productId));
     await api.deleteProduct(productId);
+    await fetchLatestStoreData();
   };
 
   const handleUpdateSettings = async (newSettings: StoreSettings) => {
     setSettings(newSettings);
     await api.updateSettings(newSettings);
+    await fetchLatestStoreData();
   };
 
   const handleResetDemoData = async () => {
@@ -322,19 +295,10 @@ export default function App() {
     setSettings(DEFAULT_STORE_SETTINGS);
     setOrders([]);
     setCart([]);
-    localStorage.removeItem('crownborn_products');
-    localStorage.removeItem('crownborn_settings');
-    localStorage.removeItem('crownborn_orders');
     localStorage.removeItem('crownborn_cart');
-    localStorage.removeItem('vbox_products');
-    localStorage.removeItem('vbox_settings');
-    localStorage.removeItem('vbox_orders');
     localStorage.removeItem('vbox_cart');
-    localStorage.removeItem('vorbox_products');
-    localStorage.removeItem('vorbox_settings');
-    localStorage.removeItem('vorbox_orders');
-    localStorage.removeItem('vorbox_cart');
     await api.resetStoreData();
+    await fetchLatestStoreData();
   };
 
   // Dynamic Categories derived from settings
@@ -565,13 +529,6 @@ export default function App() {
         settings={settings}
         onUpdateSettings={handleUpdateSettings}
         onResetDemoData={handleResetDemoData}
-      />
-
-      {/* 13. Order Received Confirmation Modal */}
-      <OrderConfirmationModal
-        order={confirmedOrder}
-        settings={settings}
-        onClose={() => setConfirmedOrder(null)}
       />
     </div>
   );

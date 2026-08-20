@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, ShieldCheck, MapPin, Phone, User, FileText, Truck, ArrowRight, ArrowLeft, MessageCircle, Check, Minus, Plus, ShoppingBag } from 'lucide-react';
 import { Product, StoreSettings, Order, CartItem } from '../types';
-import { formatBDT, generateOrderNumber, createCartWhatsAppUrl, openWhatsAppSafely } from '../utils/helpers';
+import { formatBDT, generateOrderNumber, createCartWhatsAppUrl } from '../utils/helpers';
 import { BANGLADESH_DISTRICTS } from '../data/defaultData';
 
 interface QuickOrderModalProps {
@@ -175,13 +175,11 @@ export const QuickOrderModal: React.FC<QuickOrderModalProps> = ({
       settings
     );
 
-    // 1. Save order in state and database (triggers Order Received screen immediately)
+    // Persist order in local state and database
     onOrderSuccess(newOrder);
 
-    // 2. Safely trigger WhatsApp in background/tab without replacing or blanking the current page
-    setTimeout(() => {
-      openWhatsAppSafely(whatsappCheckoutUrl);
-    }, 50);
+    // Directly navigate into WhatsApp without showing any website confirmation screen
+    window.location.href = whatsappCheckoutUrl;
   };
 
   return (

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, ShieldCheck, MapPin, Phone, User, FileText, Truck, ArrowRight, MessageCircle, Globe } from 'lucide-react';
 import { CartItem, Order, StoreSettings } from '../types';
-import { formatBDT, generateOrderNumber, createCartWhatsAppUrl, openWhatsAppSafely } from '../utils/helpers';
+import { formatBDT, generateOrderNumber, createCartWhatsAppUrl } from '../utils/helpers';
 import { BANGLADESH_DISTRICTS } from '../data/defaultData';
 
 interface CheckoutModalProps {
@@ -116,13 +116,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       createdAt: new Date().toISOString(),
     };
 
-    // 1. Persist order in local state and database (triggers Order Received screen immediately)
+    // Persist order in local state and database
     onOrderSuccess(newOrder);
 
-    // 2. Safely trigger WhatsApp in a separate task/tab without replacing or blanking the current web document
-    setTimeout(() => {
-      openWhatsAppSafely(whatsappCheckoutUrl);
-    }, 50);
+    // Directly navigate into WhatsApp without showing any website confirmation screen
+    window.location.href = whatsappCheckoutUrl;
   };
 
   return (
