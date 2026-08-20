@@ -374,16 +374,6 @@ export default function App() {
         onExploreClick={() => {
           productSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
         }}
-        onFeaturedDropClick={() => {
-          if (settings.featuredDrop?.productId) {
-            const matched = products.find((p) => p.id === settings.featuredDrop?.productId);
-            if (matched) {
-              setSelectedProduct(matched);
-              return;
-            }
-          }
-          productSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
-        }}
       />
 
       {/* 4. Products Catalog Section */}

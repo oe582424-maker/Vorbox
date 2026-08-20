@@ -1,7 +1,7 @@
 import { Product, StoreSettings, FeaturedDrop } from '../types';
 
 export const DEFAULT_FEATURED_DROP: FeaturedDrop = {
-  enabled: true,
+  enabled: false,
   badgeText: 'Featured Drop',
   title: 'Heavyweight Boxy Tee',
   subtitle: '220 GSM 100% Combed Cotton',
@@ -40,7 +40,7 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
     title: 'WEAR YOUR EDGE.',
     subtitle: 'Delivered directly to your doorstep with Fast Delivery.',
     description: 'Premium 100% combed cotton t-shirts, refined polos, signature panjabis, and everyday street fits. Zero hassle ordering with Cash on Delivery and instant 1-Click WhatsApp confirmation.',
-    showDropCard: true,
+    showDropCard: false,
   },
 };
 

@@ -91,7 +91,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
         subtitle: 'Delivered directly to your doorstep with Fast Delivery.',
         description:
           'Premium 100% combed cotton t-shirts, refined polos, signature panjabis, and everyday street fits. Zero hassle ordering with Cash on Delivery and instant 1-Click WhatsApp confirmation.',
-        showDropCard: true,
+        showDropCard: false,
       }
     );
   });
