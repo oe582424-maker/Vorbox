@@ -10,7 +10,6 @@ import { ProductCard } from './components/ProductCard';
 import { ProductModal } from './components/ProductModal';
 import { CartDrawer } from './components/CartDrawer';
 import { CheckoutModal } from './components/CheckoutModal';
-import { OrderConfirmationModal } from './components/OrderConfirmationModal';
 import { SizeGuideModal } from './components/SizeGuideModal';
 import { AdminModal } from './components/AdminModal';
 import { Footer } from './components/Footer';
@@ -83,7 +82,6 @@ export default function App() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
-  const [confirmedOrder, setConfirmedOrder] = useState<Order | null>(null);
   const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
 
@@ -228,7 +226,6 @@ export default function App() {
     setCart([]);
     setIsCheckoutOpen(false);
     setIsCartOpen(false);
-    setConfirmedOrder(order);
     // Persist to backend
     await api.createOrder(order);
   };
@@ -475,7 +472,7 @@ export default function App() {
         }}
       />
 
-      {/* 9. Checkout Modal (COD with location picker) */}
+      {/* 9. Checkout Modal (COD with location picker & instant WhatsApp redirection) */}
       <CheckoutModal
         isOpen={isCheckoutOpen}
         onClose={() => setIsCheckoutOpen(false)}
@@ -484,14 +481,7 @@ export default function App() {
         onOrderSuccess={handleOrderSuccess}
       />
 
-      {/* 10. Order Confirmation Modal */}
-      <OrderConfirmationModal
-        order={confirmedOrder}
-        settings={settings}
-        onClose={() => setConfirmedOrder(null)}
-      />
-
-      {/* 11. Bangladeshi Standard Size Guide Modal */}
+      {/* 10. Bangladeshi Standard Size Guide Modal */}
       <SizeGuideModal
         isOpen={isSizeGuideOpen}
         onClose={() => setIsSizeGuideOpen(false)}

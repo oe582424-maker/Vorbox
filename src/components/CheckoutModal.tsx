@@ -115,15 +115,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       createdAt: new Date().toISOString(),
     };
 
-    // Update order status in app state first so confirmation modal displays
-    setIsSubmitting(false);
+    // Persist order in local state and database
     onOrderSuccess(newOrder);
 
-    // Seamlessly navigate to WhatsApp without launching blank tabs or triggering popup blockers
+    // IMMEDIATELY trigger direct redirect to WhatsApp without intermediate screens
     try {
       window.location.href = whatsappCheckoutUrl;
     } catch {
-      window.open(whatsappCheckoutUrl, '_self');
+      window.open(whatsappCheckoutUrl, '_top');
     }
   };
 
@@ -231,7 +230,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold">Inside Local City / Area (Rangpur)</span>
+                  <span className="text-xs font-bold">Inside Rangpur</span>
                   <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${
                     selectedRegionType === 'local' ? 'bg-neutral-800 text-emerald-300' : 'bg-neutral-200 text-neutral-700'
                   }`}>
@@ -239,7 +238,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   </span>
                 </div>
                 <p className={`text-[11px] mt-0.5 ${selectedRegionType === 'local' ? 'text-neutral-300' : 'text-neutral-500'}`}>
-                  Rangpur local city & surrounding area
+                  Rangpur city & nearby local areas
                 </p>
               </button>
 
@@ -253,7 +252,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold">Nationwide Courier (Outside Rangpur)</span>
+                  <span className="text-xs font-bold">Nationwide Courier</span>
                   <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${
                     selectedRegionType === 'nationwide' ? 'bg-neutral-800 text-emerald-300' : 'bg-neutral-200 text-neutral-700'
                   }`}>
@@ -261,7 +260,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   </span>
                 </div>
                 <p className={`text-[11px] mt-0.5 ${selectedRegionType === 'nationwide' ? 'text-neutral-300' : 'text-neutral-500'}`}>
-                  All Districts & Thanas in Bangladesh
+                  All other Districts & Thanas in Bangladesh
                 </p>
               </button>
             </div>
@@ -269,7 +268,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-neutral-700 mb-1">
-                  District / City / Thana <span className="text-rose-500">*</span>
+                  District / City <span className="text-rose-500">*</span>
                 </label>
                 <input
                   id="checkout-district-input"
@@ -277,21 +276,21 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   required
                   value={districtCity}
                   onChange={(e) => setDistrictCity(e.target.value)}
-                  placeholder="e.g. Dhaka, Chittagong, Sylhet..."
+                  placeholder="e.g. Dhaka, Rangpur, Chittagong, Sylhet..."
                   className="w-full px-3 py-2 text-sm bg-neutral-50 border border-neutral-300 rounded-lg focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-neutral-900"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-medium text-neutral-700 mb-1">
-                  Area / Thana / Union
+                  Thana / Area / Union
                 </label>
                 <input
                   id="checkout-area-input"
                   type="text"
                   value={deliveryArea}
                   onChange={(e) => setDeliveryArea(e.target.value)}
-                  placeholder="e.g. Gulshan, Dhanmondi, Sadar..."
+                  placeholder="e.g. Dhanmondi, Mirpur, Sadar, Station Road..."
                   className="w-full px-3 py-2 text-sm bg-neutral-50 border border-neutral-300 rounded-lg focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-neutral-900"
                 />
               </div>
@@ -309,7 +308,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   rows={2}
                   value={deliveryAddress}
                   onChange={(e) => setDeliveryAddress(e.target.value)}
-                  placeholder="Road name, House #, Holding #, nearby Market, School or Landmark..."
+                  placeholder="House #, Road #, Village, Holding #, nearby landmark..."
                   className="w-full pl-9 pr-3 py-2 text-sm bg-neutral-50 border border-neutral-300 rounded-lg focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-neutral-900 resize-none"
                 />
               </div>
@@ -326,7 +325,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   type="text"
                   value={deliveryNotes}
                   onChange={(e) => setDeliveryNotes(e.target.value)}
-                  placeholder="e.g. Please call before arriving, delivery after 2 PM"
+                  placeholder="e.g. Please call before arrival, delivery in the afternoon"
                   className="w-full pl-9 pr-3 py-2 text-sm bg-neutral-50 border border-neutral-300 rounded-lg focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-neutral-900"
                 />
               </div>
@@ -367,7 +366,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             <div className="flex justify-between text-neutral-600">
               <span className="flex items-center gap-1">
                 <Truck className="w-3.5 h-3.5 text-neutral-500" />
-                <span>Delivery ({selectedRegionType === 'local' ? `Local Area` : 'Nationwide'})</span>
+                <span>Delivery ({selectedRegionType === 'local' ? `Inside Rangpur` : 'Nationwide'})</span>
               </span>
               <span className="font-mono font-semibold text-neutral-900">
                 {deliveryFee === 0 ? 'FREE' : formatBDT(deliveryFee)}
@@ -380,7 +379,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             </div>
           </div>
 
-          {/* Action CTA - Single Solid Black WhatsApp Button */}
+          {/* Action CTA - Single Solid Black Button */}
           <div className="pt-2">
             <button
               id="confirm-order-submit-btn"
@@ -389,7 +388,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               className="w-full py-4 px-4 bg-neutral-950 hover:bg-neutral-900 active:bg-black disabled:bg-neutral-400 text-white font-bold text-sm sm:text-base rounded-xl sm:rounded-2xl transition-all active:scale-98 shadow-lg flex items-center justify-center gap-2.5 cursor-pointer"
             >
               {isSubmitting ? (
-                <span>Confirming and opening WhatsApp...</span>
+                <span>Redirecting to WhatsApp...</span>
               ) : (
                 <>
                   <MessageCircle className="w-5 h-5 text-emerald-400 shrink-0" />

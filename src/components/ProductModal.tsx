@@ -279,15 +279,15 @@ export const ProductModal: React.FC<ProductModalProps> = ({
             )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              {/* Buy Now (COD Checkout) */}
+              {/* Place Order (Solid Black Primary Button) */}
               <button
-                id="modal-buynow-btn"
+                id="modal-placeorder-btn"
                 type="button"
                 onClick={handleBuyNow}
-                className="w-full py-3 px-4 bg-neutral-950 hover:bg-neutral-800 text-white font-bold text-xs sm:text-sm rounded-xl transition-all active:scale-98 shadow-sm flex items-center justify-center gap-2"
+                className="w-full py-3.5 px-4 bg-neutral-950 hover:bg-neutral-900 active:bg-black text-white font-bold text-xs sm:text-sm rounded-xl transition-all active:scale-98 shadow-md flex items-center justify-center gap-2 cursor-pointer"
               >
-                <ShieldCheck className="w-4 h-4" />
-                <span>Order with Cash on Delivery</span>
+                <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                <span>Place Order (Cash on Delivery)</span>
               </button>
 
               {/* Add to Bag */}
@@ -295,7 +295,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                 id="modal-addtobag-btn"
                 type="button"
                 onClick={handleAddToCart}
-                className={`w-full py-3 px-4 font-bold text-xs sm:text-sm rounded-xl transition-all active:scale-98 border flex items-center justify-center gap-2 cursor-pointer ${
+                className={`w-full py-3.5 px-4 font-bold text-xs sm:text-sm rounded-xl transition-all active:scale-98 border flex items-center justify-center gap-2 cursor-pointer ${
                   isInCart
                     ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 shadow-xs'
                     : 'bg-neutral-100 hover:bg-neutral-200 text-neutral-900 border-neutral-300'
@@ -308,23 +308,12 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                   </>
                 ) : (
                   <>
-                    <ShoppingBag className="w-4 h-4" />
+                    <ShoppingBag className="w-4 h-4 text-neutral-700" />
                     <span>Add to Shopping Bag</span>
                   </>
                 )}
               </button>
             </div>
-
-            {/* Order via WhatsApp Button -> Opens Checkout Modal to capture customer details first */}
-            <button
-              id="modal-whatsapp-direct-btn"
-              type="button"
-              onClick={handleBuyNow}
-              className="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm rounded-xl transition-all active:scale-98 shadow-sm flex items-center justify-center gap-2 text-center cursor-pointer"
-            >
-              <MessageCircle className="w-4 h-4" />
-              <span>Order via WhatsApp (Free COD)</span>
-            </button>
 
             {/* Delivery guarantee */}
             <div className="flex items-center justify-center gap-4 text-[11px] text-neutral-500 pt-1">

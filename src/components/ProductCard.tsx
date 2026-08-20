@@ -176,12 +176,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             id={`quick-add-${product.id}`}
             type="button"
             onClick={handleQuickAdd}
-            className={`py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer ${
+            className={`py-2 px-2.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer ${
               isInCart
                 ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs'
-                : 'bg-neutral-900 hover:bg-neutral-800 text-white'
+                : 'bg-neutral-100 hover:bg-neutral-200 text-neutral-800 border border-neutral-300'
             }`}
-            title={isInCart ? 'Item in your bag. Click to add more' : 'Add to bag'}
+            title={isInCart ? 'Item in your bag. Click to remove' : 'Add to bag'}
           >
             {isInCart ? (
               <>
@@ -189,21 +189,20 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               </>
             ) : (
               <>
-                <ShoppingBag className="w-3.5 h-3.5" /> Add to Bag
+                <ShoppingBag className="w-3.5 h-3.5 text-neutral-700" /> Add to Bag
               </>
             )}
           </button>
 
-          {/* WhatsApp Direct 1-Click Order -> Opens Checkout Modal with Address first */}
+          {/* Place Order - Stylish SOLID BLACK Button */}
           <button
-            id={`whatsapp-order-${product.id}`}
+            id={`place-order-${product.id}`}
             type="button"
             onClick={handleWhatsAppOrderClick}
-            className="py-2 px-2.5 rounded-lg text-xs font-semibold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center justify-center gap-1 transition-all active:scale-95 text-center cursor-pointer"
-            title="Order via WhatsApp (Pay Cash on Delivery)"
+            className="py-2 px-2.5 rounded-lg text-xs font-bold bg-neutral-950 hover:bg-neutral-900 active:bg-black text-white shadow-sm flex items-center justify-center gap-1 transition-all active:scale-95 text-center cursor-pointer"
+            title="Place Order (Cash on Delivery)"
           >
-            <MessageCircle className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-            <span className="truncate">WhatsApp</span>
+            <span>Place Order</span>
           </button>
         </div>
       </div>

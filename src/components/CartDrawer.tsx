@@ -227,17 +227,16 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
             {/* Main Action Buttons */}
             <div className="pt-1">
-              {/* Single Green WhatsApp Button to proceed to Cash on Delivery / WhatsApp Checkout */}
               <button
-                id="drawer-whatsapp-checkout-btn"
+                id="drawer-checkout-btn"
                 type="button"
                 onClick={onProceedToCheckout}
-                className="w-full py-3.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm rounded-xl transition-all active:scale-98 shadow-md flex items-center justify-center gap-2 text-center cursor-pointer"
-                title="Proceed to WhatsApp & COD Checkout"
+                className="w-full py-3.5 px-4 bg-neutral-950 hover:bg-neutral-900 active:bg-black text-white font-bold text-xs sm:text-sm rounded-xl transition-all active:scale-98 shadow-md flex items-center justify-center gap-2 text-center cursor-pointer"
+                title="Proceed to Cash on Delivery Checkout"
               >
-                <MessageCircle className="w-4 h-4" />
-                <span>Order via WhatsApp (Free)</span>
-                <ArrowRight className="w-4 h-4" />
+                <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                <span>Proceed to Checkout ({formatBDT(total)})</span>
+                <ArrowRight className="w-4 h-4 text-neutral-400" />
               </button>
             </div>
 
