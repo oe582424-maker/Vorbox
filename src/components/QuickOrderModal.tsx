@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, ShieldCheck, MapPin, Phone, User, FileText, Truck, ArrowRight, ArrowLeft, MessageCircle, Check, Minus, Plus, ShoppingBag } from 'lucide-react';
 import { Product, StoreSettings, Order, CartItem } from '../types';
-import { formatBDT, generateOrderNumber, createCartWhatsAppUrl } from '../utils/helpers';
+import { formatBDT, generateOrderNumber, createCartWhatsAppUrl, openWhatsAppSafely } from '../utils/helpers';
 import { BANGLADESH_DISTRICTS } from '../data/defaultData';
 
 interface QuickOrderModalProps {
@@ -175,15 +175,13 @@ export const QuickOrderModal: React.FC<QuickOrderModalProps> = ({
       settings
     );
 
-    // Save order in admin list (does NOT touch shopping bag)
+    // 1. Save order in state and database (triggers Order Received screen immediately)
     onOrderSuccess(newOrder);
 
-    // Simultaneously trigger direct WhatsApp redirection and show order confirmation receipt
-    try {
-      window.open(whatsappCheckoutUrl, '_blank');
-    } catch {
-      window.location.href = whatsappCheckoutUrl;
-    }
+    // 2. Safely trigger WhatsApp in background/tab without replacing or blanking the current page
+    setTimeout(() => {
+      openWhatsAppSafely(whatsappCheckoutUrl);
+    }, 50);
   };
 
   return (
@@ -559,7 +557,9 @@ export const QuickOrderModal: React.FC<QuickOrderModalProps> = ({
                     onChange={(e) => setDistrictCity(e.target.value)}
                     className="w-full px-3 py-2 text-sm bg-neutral-50 border border-neutral-300 rounded-lg focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-neutral-900 cursor-pointer"
                   >
-                    <option value="">Select Your District</option>
+                    <option value="" disabled>
+                      Select Your District
+                    </option>
                     {BANGLADESH_DISTRICTS.map((district) => (
                       <option key={district} value={district}>
                         {district}

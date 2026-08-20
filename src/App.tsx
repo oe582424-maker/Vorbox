@@ -11,6 +11,7 @@ import { ProductModal } from './components/ProductModal';
 import { CartDrawer } from './components/CartDrawer';
 import { CheckoutModal } from './components/CheckoutModal';
 import { QuickOrderModal } from './components/QuickOrderModal';
+import { OrderConfirmationModal } from './components/OrderConfirmationModal';
 import { SizeGuideModal } from './components/SizeGuideModal';
 import { AdminModal } from './components/AdminModal';
 import { Footer } from './components/Footer';
@@ -91,6 +92,7 @@ export default function App() {
   const [quickOrderInitialStep, setQuickOrderInitialStep] = useState<1 | 2>(1);
   const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [confirmedOrder, setConfirmedOrder] = useState<Order | null>(null);
 
   const productSectionRef = useRef<HTMLDivElement>(null);
   const isSyncingRef = useRef(false);
@@ -264,6 +266,7 @@ export default function App() {
   const handleQuickOrderSuccess = async (order: Order) => {
     setOrders((prev) => [order, ...prev]);
     setQuickOrderProduct(null);
+    setConfirmedOrder(order);
     await api.createOrder(order);
   };
 
@@ -273,6 +276,7 @@ export default function App() {
     setCart([]);
     setIsCheckoutOpen(false);
     setIsCartOpen(false);
+    setConfirmedOrder(order);
     // Persist to backend
     await api.createOrder(order);
   };
@@ -561,6 +565,13 @@ export default function App() {
         settings={settings}
         onUpdateSettings={handleUpdateSettings}
         onResetDemoData={handleResetDemoData}
+      />
+
+      {/* 13. Order Received Confirmation Modal */}
+      <OrderConfirmationModal
+        order={confirmedOrder}
+        settings={settings}
+        onClose={() => setConfirmedOrder(null)}
       />
     </div>
   );

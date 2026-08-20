@@ -174,3 +174,32 @@ export function createOrderReceiptWhatsAppUrl(
   return `https://wa.me/${targetPhone}?text=${encodeURIComponent(message)}`;
 }
 
+/**
+ * Safely triggers WhatsApp link redirection via a background anchor click with rel="noopener noreferrer"
+ * so that the main browser page remains active and shows the Order Confirmation screen when the user returns.
+ */
+export function openWhatsAppSafely(url: string): void {
+  try {
+    const link = document.createElement('a');
+    link.href = url;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => {
+      if (document.body.contains(link)) {
+        document.body.removeChild(link);
+      }
+    }, 1000);
+  } catch (e) {
+    console.error('Failed to trigger WhatsApp link click:', e);
+    try {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } catch {
+      // Avoid replacing window.location
+    }
+  }
+}
+
+

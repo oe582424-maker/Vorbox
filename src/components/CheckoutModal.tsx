@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, ShieldCheck, MapPin, Phone, User, FileText, Truck, ArrowRight, MessageCircle, Globe } from 'lucide-react';
 import { CartItem, Order, StoreSettings } from '../types';
-import { formatBDT, generateOrderNumber, createCartWhatsAppUrl } from '../utils/helpers';
+import { formatBDT, generateOrderNumber, createCartWhatsAppUrl, openWhatsAppSafely } from '../utils/helpers';
 import { BANGLADESH_DISTRICTS } from '../data/defaultData';
 
 interface CheckoutModalProps {
@@ -116,15 +116,13 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       createdAt: new Date().toISOString(),
     };
 
-    // Persist order in local state and database
+    // 1. Persist order in local state and database (triggers Order Received screen immediately)
     onOrderSuccess(newOrder);
 
-    // Simultaneously trigger direct WhatsApp redirection and show order confirmation receipt
-    try {
-      window.open(whatsappCheckoutUrl, '_blank');
-    } catch {
-      window.location.href = whatsappCheckoutUrl;
-    }
+    // 2. Safely trigger WhatsApp in a separate task/tab without replacing or blanking the current web document
+    setTimeout(() => {
+      openWhatsAppSafely(whatsappCheckoutUrl);
+    }, 50);
   };
 
   return (
@@ -278,7 +276,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   onChange={(e) => setDistrictCity(e.target.value)}
                   className="w-full px-3 py-2 text-sm bg-neutral-50 border border-neutral-300 rounded-lg focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-neutral-900 cursor-pointer"
                 >
-                  <option value="">Select Your District</option>
+                  <option value="" disabled>
+                    Select Your District
+                  </option>
                   {BANGLADESH_DISTRICTS.map((district) => (
                     <option key={district} value={district}>
                       {district}

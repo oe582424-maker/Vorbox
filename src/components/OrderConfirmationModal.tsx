@@ -1,6 +1,6 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import confetti from 'canvas-confetti';
-import { CheckCircle2, MessageCircle, Truck, Package, Copy, ArrowRight, ShieldCheck, X } from 'lucide-react';
+import { CheckCircle2, MessageCircle, Truck, Package, Copy, Check, ShieldCheck, X } from 'lucide-react';
 import { Order, StoreSettings } from '../types';
 import { formatBDT, createOrderReceiptWhatsAppUrl } from '../utils/helpers';
 
@@ -15,6 +15,8 @@ export const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({
   settings,
   onClose,
 }) => {
+  const [copied, setCopied] = useState(false);
+
   useEffect(() => {
     if (order) {
       confetti({
@@ -22,6 +24,7 @@ export const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({
         spread: 60,
         origin: { y: 0.6 },
       });
+      setCopied(false);
     }
   }, [order]);
 
@@ -31,7 +34,8 @@ export const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({
 
   const copyOrderNumber = () => {
     navigator.clipboard.writeText(order.orderNumber);
-    alert(`Copied Order ID: ${order.orderNumber}`);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2500);
   };
 
   return (
@@ -71,11 +75,26 @@ export const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({
               <span className="text-base font-black font-mono text-neutral-900">{order.orderNumber}</span>
             </div>
             <button
+              id="copy-order-id-btn"
               type="button"
               onClick={copyOrderNumber}
-              className="px-2.5 py-1 bg-white hover:bg-neutral-200 border border-neutral-300 rounded-lg text-neutral-700 font-medium flex items-center gap-1 text-[11px]"
+              className={`px-2.5 py-1 border rounded-lg font-medium flex items-center gap-1 text-[11px] transition-all cursor-pointer ${
+                copied
+                  ? 'bg-emerald-600 border-emerald-600 text-white shadow-xs'
+                  : 'bg-white hover:bg-neutral-200 border-neutral-300 text-neutral-700'
+              }`}
             >
-              <Copy className="w-3 h-3" /> Copy
+              {copied ? (
+                <>
+                  <Check className="w-3 h-3 text-white" />
+                  <span>Copied!</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3 h-3" />
+                  <span>Copy</span>
+                </>
+              )}
             </button>
           </div>
 
