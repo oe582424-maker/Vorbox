@@ -10,7 +10,7 @@ interface ProductCardProps {
   onOpenProductModal: (product: Product) => void;
   onQuickAddToCart: (product: Product, size: 'S' | 'M' | 'L' | 'XL' | 'XXL', color: { name: string; hex: string }) => void;
   onRemoveFromCart?: (comboId: string) => void;
-  onOrderViaWhatsApp: (product: Product, size: 'S' | 'M' | 'L' | 'XL' | 'XXL', color: { name: string; hex: string }) => void;
+  onPlaceOrder: (product: Product, size?: 'S' | 'M' | 'L' | 'XL' | 'XXL', color?: { name: string; hex: string }) => void;
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({
@@ -20,7 +20,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   onOpenProductModal,
   onQuickAddToCart,
   onRemoveFromCart,
-  onOrderViaWhatsApp,
+  onPlaceOrder,
 }) => {
   const [selectedSize, setSelectedSize] = useState<'S' | 'M' | 'L' | 'XL' | 'XXL'>(product.sizes[0] || 'M');
   const [selectedColor, setSelectedColor] = useState(product.colors[0] || { name: 'Standard', hex: '#111' });
@@ -43,9 +43,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     }
   };
 
-  const handleWhatsAppOrderClick = (e: React.MouseEvent) => {
+  const handlePlaceOrderClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onOrderViaWhatsApp(product, selectedSize, selectedColor);
+    onPlaceOrder(product, selectedSize, selectedColor);
   };
 
   return (
@@ -198,7 +198,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           <button
             id={`place-order-${product.id}`}
             type="button"
-            onClick={handleWhatsAppOrderClick}
+            onClick={handlePlaceOrderClick}
             className="py-2 px-2.5 rounded-lg text-xs font-bold bg-neutral-950 hover:bg-neutral-900 active:bg-black text-white shadow-sm flex items-center justify-center gap-1 transition-all active:scale-95 text-center cursor-pointer"
             title="Place Order (Cash on Delivery)"
           >

@@ -10,6 +10,7 @@ import { ProductCard } from './components/ProductCard';
 import { ProductModal } from './components/ProductModal';
 import { CartDrawer } from './components/CartDrawer';
 import { CheckoutModal } from './components/CheckoutModal';
+import { QuickOrderModal } from './components/QuickOrderModal';
 import { SizeGuideModal } from './components/SizeGuideModal';
 import { AdminModal } from './components/AdminModal';
 import { Footer } from './components/Footer';
@@ -82,6 +83,11 @@ export default function App() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [quickOrderProduct, setQuickOrderProduct] = useState<Product | null>(null);
+  const [quickOrderInitialSize, setQuickOrderInitialSize] = useState<'S' | 'M' | 'L' | 'XL' | 'XXL' | undefined>();
+  const [quickOrderInitialColor, setQuickOrderInitialColor] = useState<{ name: string; hex: string } | undefined>();
+  const [quickOrderInitialQuantity, setQuickOrderInitialQuantity] = useState<number>(1);
+  const [quickOrderInitialStep, setQuickOrderInitialStep] = useState<1 | 2>(1);
   const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
 
@@ -209,19 +215,43 @@ export default function App() {
     setCart([]);
   };
 
-  const handleBuyNowCOD = (
+  // Open Quick Order from ProductCard "Place Order" (Step 1: Choose Variant)
+  const handleOpenQuickOrder = (
+    product: Product,
+    size?: 'S' | 'M' | 'L' | 'XL' | 'XXL',
+    color?: { name: string; hex: string }
+  ) => {
+    setQuickOrderProduct(product);
+    setQuickOrderInitialSize(size || product.sizes[0] || 'M');
+    setQuickOrderInitialColor(color || product.colors[0] || { name: 'Standard', hex: '#111' });
+    setQuickOrderInitialQuantity(1);
+    setQuickOrderInitialStep(1); // Starts at Step 1: Variant Selection
+  };
+
+  // Open Quick Order from ProductModal "Place Order (Cash on Delivery)" (Step 2: Delivery Details)
+  const handleBuyNowFromModal = (
     product: Product,
     size: 'S' | 'M' | 'L' | 'XL' | 'XXL',
     color: { name: string; hex: string },
     quantity: number
   ) => {
-    handleAddToCart(product, size, color, quantity);
     setSelectedProduct(null);
-    setIsCheckoutOpen(true);
+    setQuickOrderProduct(product);
+    setQuickOrderInitialSize(size);
+    setQuickOrderInitialColor(color);
+    setQuickOrderInitialQuantity(quantity);
+    setQuickOrderInitialStep(2); // Directly opens Step 2: Delivery Details
   };
 
-  // Order submission
-  const handleOrderSuccess = async (order: Order) => {
+  // Quick Order Submission (keeps persistent shopping bag intact)
+  const handleQuickOrderSuccess = async (order: Order) => {
+    setOrders((prev) => [order, ...prev]);
+    setQuickOrderProduct(null);
+    await api.createOrder(order);
+  };
+
+  // Cart Drawer Checkout submission (clears persistent cart)
+  const handleCartOrderSuccess = async (order: Order) => {
     setOrders((prev) => [order, ...prev]);
     setCart([]);
     setIsCheckoutOpen(false);
@@ -387,7 +417,7 @@ export default function App() {
                 onOpenProductModal={(p) => setSelectedProduct(p)}
                 onQuickAddToCart={(p, sz, clr) => handleAddToCart(p, sz, clr, 1)}
                 onRemoveFromCart={handleRemoveFromCart}
-                onOrderViaWhatsApp={(p, sz, clr) => handleBuyNowCOD(p, sz, clr, 1)}
+                onPlaceOrder={(p, sz, clr) => handleOpenQuickOrder(p, sz, clr)}
               />
             ))}
           </div>
@@ -454,7 +484,7 @@ export default function App() {
         onAddToCart={(p, sz, clr, qty) => handleAddToCart(p, sz, clr, qty)}
         onRemoveFromCart={handleRemoveFromCart}
         onOpenSizeGuide={() => setIsSizeGuideOpen(true)}
-        onBuyNowCOD={handleBuyNowCOD}
+        onBuyNowCOD={handleBuyNowFromModal}
       />
 
       {/* 8. Cart Slide-Over Drawer */}
@@ -472,16 +502,30 @@ export default function App() {
         }}
       />
 
-      {/* 9. Checkout Modal (COD with location picker & instant WhatsApp redirection) */}
+      {/* 9. Checkout Modal (Cart Drawer COD Checkout) */}
       <CheckoutModal
         isOpen={isCheckoutOpen}
         onClose={() => setIsCheckoutOpen(false)}
         cart={cart}
         settings={settings}
-        onOrderSuccess={handleOrderSuccess}
+        onOrderSuccess={handleCartOrderSuccess}
       />
 
-      {/* 10. Bangladeshi Standard Size Guide Modal */}
+      {/* 10. Quick Order 2-Step Modal (Variant Selection -> Delivery Info -> WhatsApp) */}
+      <QuickOrderModal
+        isOpen={!!quickOrderProduct}
+        onClose={() => setQuickOrderProduct(null)}
+        product={quickOrderProduct}
+        initialSize={quickOrderInitialSize}
+        initialColor={quickOrderInitialColor}
+        initialQuantity={quickOrderInitialQuantity}
+        initialStep={quickOrderInitialStep}
+        settings={settings}
+        onOrderSuccess={handleQuickOrderSuccess}
+        onOpenSizeGuide={() => setIsSizeGuideOpen(true)}
+      />
+
+      {/* 11. Bangladeshi Standard Size Guide Modal */}
       <SizeGuideModal
         isOpen={isSizeGuideOpen}
         onClose={() => setIsSizeGuideOpen(false)}
