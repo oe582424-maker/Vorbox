@@ -338,6 +338,28 @@ function loadDatabase(): StoreDbStructure {
 
 let inMemoryDb: StoreDbStructure = loadDatabase();
 
+// Active SSE Client Connection Pool for Real-Time Synchronization Across Browsers
+const sseClients: Set<express.Response> = new Set();
+
+function broadcastStoreUpdate() {
+  const payload = JSON.stringify({
+    type: 'store_update',
+    products: inMemoryDb.products,
+    settings: inMemoryDb.settings,
+    orders: inMemoryDb.orders,
+    version: inMemoryDb.version,
+    lastUpdated: inMemoryDb.lastUpdated,
+  });
+
+  for (const client of sseClients) {
+    try {
+      client.write(`data: ${payload}\n\n`);
+    } catch (e) {
+      sseClients.delete(client);
+    }
+  }
+}
+
 function saveDatabase(db: StoreDbStructure) {
   try {
     if (!fs.existsSync(DATA_DIR)) {
@@ -347,6 +369,7 @@ function saveDatabase(db: StoreDbStructure) {
     db.version = (db.version || 0) + 1;
     fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), 'utf-8');
     inMemoryDb = db;
+    broadcastStoreUpdate();
   } catch (err) {
     console.error('Error saving store database file:', err);
   }
@@ -354,6 +377,42 @@ function saveDatabase(db: StoreDbStructure) {
 
 async function startServer() {
   // ==================== API ROUTES ====================
+
+  // Real-time Event Stream (Server-Sent Events) for instant multi-device synchronization
+  app.get('/api/events', (req, res) => {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders?.();
+
+    // Send immediate snapshot on connection
+    const snapshotPayload = JSON.stringify({
+      type: 'store_init',
+      products: inMemoryDb.products,
+      settings: inMemoryDb.settings,
+      orders: inMemoryDb.orders,
+      version: inMemoryDb.version,
+      lastUpdated: inMemoryDb.lastUpdated,
+    });
+    res.write(`data: ${snapshotPayload}\n\n`);
+
+    sseClients.add(res);
+
+    // Heartbeat every 25 seconds
+    const keepAlive = setInterval(() => {
+      try {
+        res.write(': heartbeat\n\n');
+      } catch (e) {
+        clearInterval(keepAlive);
+        sseClients.delete(res);
+      }
+    }, 25000);
+
+    req.on('close', () => {
+      clearInterval(keepAlive);
+      sseClients.delete(res);
+    });
+  });
   
   // Health check
   app.get('/api/health', (req, res) => {
@@ -364,6 +423,7 @@ async function startServer() {
       orderCount: inMemoryDb.orders.length,
       version: inMemoryDb.version,
       lastUpdated: inMemoryDb.lastUpdated,
+      connectedClients: sseClients.size,
     });
   });
 
@@ -435,7 +495,8 @@ async function startServer() {
     inMemoryDb.settings = {
       ...inMemoryDb.settings,
       ...newSettings,
-      featuredDrop: newSettings.featuredDrop || inMemoryDb.settings.featuredDrop || DEFAULT_FEATURED_DROP,
+      featuredDrop: newSettings.featuredDrop !== undefined ? newSettings.featuredDrop : (inMemoryDb.settings.featuredDrop || DEFAULT_FEATURED_DROP),
+      heroSettings: newSettings.heroSettings !== undefined ? newSettings.heroSettings : inMemoryDb.settings.heroSettings,
     };
     saveDatabase(inMemoryDb);
     res.json({ success: true, settings: inMemoryDb.settings, version: inMemoryDb.version });

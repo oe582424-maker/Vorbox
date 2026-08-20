@@ -10,6 +10,59 @@ export interface StoreSyncData {
 }
 
 export const api = {
+  // Subscribe to real-time store updates via SSE
+  subscribeToStoreUpdates(onUpdate: (data: StoreSyncData) => void): () => void {
+    if (typeof window === 'undefined' || !window.EventSource) {
+      return () => {};
+    }
+
+    let eventSource: EventSource | null = null;
+    let reconnectTimeout: any = null;
+
+    const connect = () => {
+      try {
+        eventSource = new EventSource('/api/events');
+
+        eventSource.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (data && (data.type === 'store_update' || data.type === 'store_init')) {
+              onUpdate({
+                products: data.products,
+                settings: data.settings,
+                orders: data.orders || [],
+                version: data.version || 1,
+                lastUpdated: data.lastUpdated || Date.now(),
+              });
+            }
+          } catch (e) {
+            console.error('Error parsing SSE event data:', e);
+          }
+        };
+
+        eventSource.onerror = () => {
+          if (eventSource) {
+            eventSource.close();
+            eventSource = null;
+          }
+          // Reconnect with backoff
+          reconnectTimeout = setTimeout(connect, 3000);
+        };
+      } catch (err) {
+        console.warn('Failed to start EventSource:', err);
+      }
+    };
+
+    connect();
+
+    return () => {
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      if (eventSource) {
+        eventSource.close();
+      }
+    };
+  },
+
   // Fetch full store data from server (products, settings, orders)
   async getStoreData(): Promise<StoreSyncData | null> {
     try {

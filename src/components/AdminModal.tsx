@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   Settings,
@@ -100,6 +100,20 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   });
   const [dropImageUrlInput, setDropImageUrlInput] = useState('');
   const [savedHeroNotice, setSavedHeroNotice] = useState(false);
+
+  // Synchronize internal form state when global store settings update from server
+  useEffect(() => {
+    setFormSettings(settings);
+    if (settings.heroSettings) {
+      setHeroForm({
+        ...settings.heroSettings,
+        enabled: settings.showHeroBanner !== undefined ? settings.showHeroBanner : (settings.heroSettings.enabled ?? true),
+      });
+    }
+    if (settings.featuredDrop) {
+      setFeaturedDropForm(settings.featuredDrop);
+    }
+  }, [settings]);
 
   // Password Change Form State
   const [currentPasswordConfirm, setCurrentPasswordConfirm] = useState('');

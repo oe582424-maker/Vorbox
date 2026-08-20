@@ -101,6 +101,8 @@ export default function App() {
             ...prev,
             ...data.settings,
             adminPassword: data.settings.adminPassword || prev.adminPassword,
+            heroSettings: data.settings.heroSettings || prev.heroSettings,
+            featuredDrop: data.settings.featuredDrop || prev.featuredDrop,
           }));
         }
         if (Array.isArray(data.orders)) {
@@ -114,16 +116,37 @@ export default function App() {
     }
   }, []);
 
-  // Sync on initial mount + live background polling across all devices
+  // Sync on initial mount + live real-time SSE listener + background polling across all visitor devices
   useEffect(() => {
+    // 1. Initial snapshot load
     fetchLatestStoreData();
 
-    // Poll every 3 seconds for instant real-time multi-device synchronization
+    // 2. Real-time Server-Sent Events (instant global update when admin saves in any browser)
+    const unsubscribeSSE = api.subscribeToStoreUpdates((syncData) => {
+      if (!syncData) return;
+      if (syncData.settings) {
+        setSettings((prev) => ({
+          ...prev,
+          ...syncData.settings,
+          adminPassword: syncData.settings.adminPassword || prev.adminPassword,
+          heroSettings: syncData.settings.heroSettings || prev.heroSettings,
+          featuredDrop: syncData.settings.featuredDrop || prev.featuredDrop,
+        }));
+      }
+      if (Array.isArray(syncData.products) && syncData.products.length > 0) {
+        setProducts(syncData.products);
+      }
+      if (Array.isArray(syncData.orders)) {
+        setOrders(syncData.orders);
+      }
+    });
+
+    // 3. Fallback background polling every 2.5 seconds
     const interval = setInterval(() => {
       fetchLatestStoreData();
-    }, 3000);
+    }, 2500);
 
-    // Also sync immediately on window focus or tab visibility change
+    // 4. Instant sync on window focus or tab visibility change
     const onVisibilityOrFocus = () => {
       if (document.visibilityState === 'visible') {
         fetchLatestStoreData();
@@ -133,6 +156,7 @@ export default function App() {
     document.addEventListener('visibilitychange', onVisibilityOrFocus);
 
     return () => {
+      unsubscribeSSE();
       clearInterval(interval);
       window.removeEventListener('focus', onVisibilityOrFocus);
       document.removeEventListener('visibilitychange', onVisibilityOrFocus);
