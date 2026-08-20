@@ -21,8 +21,8 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ settings, onExploreCli
 
   const drop = settings.featuredDrop;
   const isDropActive = Boolean(drop && drop.enabled && drop.image);
-  const heroBadge = settings.heroSettings?.badgeText || 'Modern Minimalist Streetwear & Essentials';
-  const heroTitle = settings.heroSettings?.title || 'Minimalist Wear.';
+  const heroBadge = settings.heroSettings?.badgeText || 'Best Quality Products';
+  const heroTitle = settings.heroSettings?.title || 'WEAR YOUR EDGE.';
   const heroSubtitle = settings.heroSettings?.subtitle || 'Delivered directly to your doorstep with Fast Delivery.';
   const heroDescription = settings.heroSettings?.description || (
     <>

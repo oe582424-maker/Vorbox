@@ -86,8 +86,8 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     return (
       settings.heroSettings || {
         enabled: settings.showHeroBanner ?? true,
-        badgeText: 'Modern Minimalist Streetwear & Essentials',
-        title: 'Minimalist Wear.',
+        badgeText: 'Best Quality Products',
+        title: 'WEAR YOUR EDGE.',
         subtitle: 'Delivered directly to your doorstep with Fast Delivery.',
         description:
           'Premium 100% combed cotton t-shirts, refined polos, signature panjabis, and everyday street fits. Zero hassle ordering with Cash on Delivery and instant 1-Click WhatsApp confirmation.',
@@ -1255,7 +1255,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                             type="text"
                             value={heroForm.badgeText || ''}
                             onChange={(e) => setHeroForm({ ...heroForm, badgeText: e.target.value })}
-                            placeholder="e.g. Modern Minimalist Streetwear & Essentials"
+                            placeholder="e.g. Best Quality Products"
                             className="w-full p-2.5 bg-white border border-neutral-300 rounded-lg text-xs focus:outline-hidden"
                           />
                         </div>
@@ -1266,7 +1266,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                             type="text"
                             value={heroForm.title || ''}
                             onChange={(e) => setHeroForm({ ...heroForm, title: e.target.value })}
-                            placeholder="e.g. Minimalist Wear."
+                            placeholder="e.g. WEAR YOUR EDGE."
                             className="w-full p-2.5 bg-white border border-neutral-300 rounded-lg text-xs focus:outline-hidden font-mono"
                           />
                         </div>

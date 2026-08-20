@@ -21,14 +21,14 @@ export const DEFAULT_CATEGORIES: string[] = [
 
 export const DEFAULT_STORE_SETTINGS: StoreSettings = {
   storeName: 'CROWNBORN',
-  tagline: 'Minimalist & Everyday Streetwear',
+  tagline: 'For The Ones Born Royal',
   city: 'Rangpur',
   whatsappNumber: '8801866068916',
   whatsappDisplayNumber: '+880 1866-068916',
   insideCityDeliveryFee: 60,
   outsideCityDeliveryFee: 120,
   freeDeliveryThreshold: 1500,
-  bannerNotice: '⚡ Fast Delivery | Cash on Delivery Available | Order via Website or WhatsApp',
+  bannerNotice: 'Your Reliable Shopping Partner.',
   storeAddress: 'Rangpur, Bangladesh',
   adminPassword: 'akm125@#155Ab12*',
   featuredDrop: DEFAULT_FEATURED_DROP,
@@ -36,8 +36,8 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
   showHeroBanner: true,
   heroSettings: {
     enabled: true,
-    badgeText: 'Modern Minimalist Streetwear & Essentials',
-    title: 'Minimalist Wear.',
+    badgeText: 'Best Quality Products',
+    title: 'WEAR YOUR EDGE.',
     subtitle: 'Delivered directly to your doorstep with Fast Delivery.',
     description: 'Premium 100% combed cotton t-shirts, refined polos, signature panjabis, and everyday street fits. Zero hassle ordering with Cash on Delivery and instant 1-Click WhatsApp confirmation.',
     showDropCard: true,
