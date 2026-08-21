@@ -66,62 +66,95 @@ export const api = {
   // Fetch full store data from server (products, settings, orders)
   async getStoreData(): Promise<StoreSyncData | null> {
     try {
-      const res = await fetch('/api/store-data', {
-        headers: { 'Cache-Control': 'no-cache' },
+      const res = await fetch(`/api/store-data?t=${Date.now()}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+        },
       });
       if (!res.ok) throw new Error(`HTTP error ${res.status}`);
       const data: StoreSyncData = await res.json();
       return data;
     } catch (err) {
-      console.warn('Backend API getStoreData failed, using local offline fallback:', err);
+      console.warn('Backend API getStoreData failed:', err);
       return null;
     }
   },
 
-  // Save/Create a product
+  // Fetch live products list directly
+  async getProducts(): Promise<Product[] | null> {
+    try {
+      const res = await fetch(`/api/products?t=${Date.now()}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+        },
+      });
+      if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+      const data = await res.json();
+      return Array.isArray(data) ? data : null;
+    } catch (err) {
+      console.warn('Backend API getProducts failed:', err);
+      return null;
+    }
+  },
+
+  // Save/Create a product directly in database
   async createProduct(product: Product): Promise<Product | null> {
     try {
       const res = await fetch('/api/products', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache',
+        },
         body: JSON.stringify(product),
       });
       if (!res.ok) throw new Error(`HTTP error ${res.status}`);
       const data = await res.json();
       return data.product || product;
     } catch (err) {
-      console.warn('Backend API createProduct failed:', err);
+      console.error('Backend API createProduct failed:', err);
       return product;
     }
   },
 
-  // Update an existing product
+  // Update an existing product in database
   async updateProduct(product: Product): Promise<Product | null> {
     try {
-      const res = await fetch(`/api/products/${product.id}`, {
+      const res = await fetch(`/api/products/${encodeURIComponent(product.id)}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache',
+        },
         body: JSON.stringify(product),
       });
       if (!res.ok) throw new Error(`HTTP error ${res.status}`);
       const data = await res.json();
       return data.product || product;
     } catch (err) {
-      console.warn('Backend API updateProduct failed:', err);
+      console.error('Backend API updateProduct failed:', err);
       return product;
     }
   },
 
-  // Delete a product
+  // Permanently delete a product from database
   async deleteProduct(productId: string): Promise<boolean> {
     try {
-      const res = await fetch(`/api/products/${productId}`, {
+      const res = await fetch(`/api/products/${encodeURIComponent(productId)}`, {
         method: 'DELETE',
+        headers: {
+          'Cache-Control': 'no-cache',
+        },
       });
-      return res.ok;
-    } catch (err) {
-      console.warn('Backend API deleteProduct failed:', err);
+      if (!res.ok) throw new Error(`HTTP error ${res.status}`);
       return true;
+    } catch (err) {
+      console.error('Backend API deleteProduct failed:', err);
+      return false;
     }
   },
 
@@ -130,14 +163,17 @@ export const api = {
     try {
       const res = await fetch('/api/settings', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache',
+        },
         body: JSON.stringify(settings),
       });
       if (!res.ok) throw new Error(`HTTP error ${res.status}`);
       const data = await res.json();
       return data.settings || settings;
     } catch (err) {
-      console.warn('Backend API updateSettings failed:', err);
+      console.error('Backend API updateSettings failed:', err);
       return settings;
     }
   },

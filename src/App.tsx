@@ -93,7 +93,7 @@ export default function App() {
       isSyncingRef.current = true;
       const data = await api.getStoreData();
       if (data) {
-        if (Array.isArray(data.products) && data.products.length > 0) {
+        if (Array.isArray(data.products)) {
           setProducts(data.products);
         }
         if (data.settings) {
@@ -133,7 +133,7 @@ export default function App() {
           featuredDrop: syncData.settings.featuredDrop || prev.featuredDrop,
         }));
       }
-      if (Array.isArray(syncData.products) && syncData.products.length > 0) {
+      if (Array.isArray(syncData.products)) {
         setProducts(syncData.products);
       }
       if (Array.isArray(syncData.orders)) {
@@ -289,23 +289,37 @@ export default function App() {
 
   // Admin product operations
   const handleAddProduct = async (newProd: Product) => {
-    setProducts((prev) => [newProd, ...prev]);
-    await api.createProduct(newProd);
-    await fetchLatestStoreData();
+    try {
+      const saved = await api.createProduct(newProd);
+      const finalProduct = saved || newProd;
+      setProducts((prev) => [finalProduct, ...prev.filter((p) => p.id !== finalProduct.id)]);
+      await fetchLatestStoreData();
+    } catch (err) {
+      console.error('Error adding product:', err);
+    }
   };
 
   const handleUpdateProduct = async (updatedProd: Product) => {
-    setProducts((prev) =>
-      prev.map((p) => (p.id === updatedProd.id ? updatedProd : p))
-    );
-    await api.updateProduct(updatedProd);
-    await fetchLatestStoreData();
+    try {
+      const saved = await api.updateProduct(updatedProd);
+      const finalProduct = saved || updatedProd;
+      setProducts((prev) =>
+        prev.map((p) => (p.id === finalProduct.id ? finalProduct : p))
+      );
+      await fetchLatestStoreData();
+    } catch (err) {
+      console.error('Error updating product:', err);
+    }
   };
 
   const handleDeleteProduct = async (productId: string) => {
-    setProducts((prev) => prev.filter((p) => p.id !== productId));
-    await api.deleteProduct(productId);
-    await fetchLatestStoreData();
+    try {
+      setProducts((prev) => prev.filter((p) => p.id !== productId));
+      await api.deleteProduct(productId);
+      await fetchLatestStoreData();
+    } catch (err) {
+      console.error('Error deleting product:', err);
+    }
   };
 
   const handleUpdateSettings = async (newSettings: StoreSettings) => {

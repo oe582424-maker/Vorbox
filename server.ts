@@ -307,7 +307,7 @@ function loadDatabase(): StoreDbStructure {
       const raw = fs.readFileSync(DB_FILE, 'utf-8');
       const data = JSON.parse(raw);
       return {
-        products: Array.isArray(data.products) && data.products.length > 0 ? data.products : INITIAL_PRODUCTS,
+        products: Array.isArray(data.products) ? data.products : INITIAL_PRODUCTS,
         settings: {
           ...DEFAULT_STORE_SETTINGS,
           ...(data.settings || {}),
@@ -377,6 +377,15 @@ function saveDatabase(db: StoreDbStructure) {
 
 async function startServer() {
   // ==================== API ROUTES ====================
+
+  // Ensure no browser/proxy caching for all API endpoints
+  app.use('/api', (req, res, next) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.setHeader('Surrogate-Control', 'no-store');
+    next();
+  });
 
   // Real-time Event Stream (Server-Sent Events) for instant multi-device synchronization
   app.get('/api/events', (req, res) => {
