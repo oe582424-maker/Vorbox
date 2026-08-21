@@ -1,5 +1,15 @@
 import { Order, Product, StoreSettings } from '../types';
 import { DEFAULT_STORE_SETTINGS, INITIAL_PRODUCTS } from '../data/defaultData';
+import {
+  isSupabaseConfigured,
+  fetchProductsFromSupabase,
+  insertProductToSupabase,
+  updateProductInSupabase,
+  updateProductImagesInSupabase,
+  deleteProductFromSupabase,
+  fetchSettingsFromSupabase,
+  saveSettingsToSupabase,
+} from '../lib/supabase';
 
 export interface StoreSyncData {
   products: Product[];
@@ -7,36 +17,6 @@ export interface StoreSyncData {
   orders: Order[];
   version: number;
   lastUpdated: number;
-}
-
-// Optional Supabase Configuration from Environment
-const SUPABASE_URL = (import.meta as any).env?.VITE_SUPABASE_URL || '';
-const SUPABASE_ANON_KEY = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || '';
-
-const isSupabaseConfigured = Boolean(
-  SUPABASE_URL &&
-  SUPABASE_ANON_KEY &&
-  SUPABASE_URL.startsWith('http') &&
-  !SUPABASE_URL.includes('your-supabase')
-);
-
-// Helper for Supabase REST requests
-async function supabaseFetch(endpoint: string, options: RequestInit = {}): Promise<Response | null> {
-  if (!isSupabaseConfigured) return null;
-  try {
-    const url = `${SUPABASE_URL.replace(/\/$/, '')}/rest/v1/${endpoint}`;
-    const headers = {
-      'apikey': SUPABASE_ANON_KEY,
-      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-      'Content-Type': 'application/json',
-      'Prefer': 'return=representation',
-      ...(options.headers || {}),
-    };
-    return await fetch(url, { ...options, headers });
-  } catch (e) {
-    console.warn('Supabase REST fetch error:', e);
-    return null;
-  }
 }
 
 // ==========================================
@@ -97,19 +77,16 @@ export const api = {
     };
   },
 
-  // 1. GETs master product catalog from remote cloud endpoint / Supabase / Express Server
+  // 1. GETs master product catalog from remote cloud endpoint (Supabase primary or Express persistent server)
   async fetchProducts(): Promise<Product[]> {
     if (isSupabaseConfigured) {
       try {
-        const sbRes = await supabaseFetch('products?select=*');
-        if (sbRes && sbRes.ok) {
-          const data = await sbRes.json();
-          if (Array.isArray(data) && data.length > 0) {
-            return data;
-          }
+        const sbProducts = await fetchProductsFromSupabase();
+        if (sbProducts && Array.isArray(sbProducts) && sbProducts.length > 0) {
+          return sbProducts;
         }
       } catch (err) {
-        console.warn('Supabase fetchProducts failed, falling back to REST server:', err);
+        console.warn('Supabase fetchProducts failed, falling back to backend server:', err);
       }
     }
 
@@ -147,26 +124,48 @@ export const api = {
       });
       if (!res.ok) throw new Error(`HTTP error ${res.status}`);
       const data: StoreSyncData = await res.json();
+
+      // If Supabase has products, combine them
+      if (isSupabaseConfigured) {
+        const sbProducts = await fetchProductsFromSupabase();
+        if (sbProducts && sbProducts.length > 0) {
+          data.products = sbProducts;
+        }
+      }
+
       return data;
     } catch (err) {
       console.warn('Backend API getStoreData failed:', err);
+      if (isSupabaseConfigured) {
+        const sbProducts = await fetchProductsFromSupabase();
+        if (sbProducts && sbProducts.length > 0) {
+          return {
+            products: sbProducts,
+            settings: DEFAULT_STORE_SETTINGS,
+            orders: [],
+            version: 1,
+            lastUpdated: Date.now(),
+          };
+        }
+      }
       return null;
     }
   },
 
-  // 2. POSTs/PUTs product updates to remote cloud database
+  // 2. POSTs/PUTs product updates to remote cloud database (Supabase + Express)
   async saveProduct(product: Product): Promise<Product> {
-    // If Supabase is configured
+    // If Supabase is configured, mutate remote database first
     if (isSupabaseConfigured) {
       try {
-        const sbRes = await supabaseFetch('products', {
-          method: 'POST',
-          headers: { 'Prefer': 'resolution=merge-duplicates,return=representation' },
-          body: JSON.stringify(product),
-        });
-        if (sbRes && sbRes.ok) {
-          const [saved] = await sbRes.json();
-          if (saved) return saved;
+        const savedSb = await insertProductToSupabase(product);
+        if (savedSb) {
+          // Also sync to server in background for redundancy
+          fetch(`/api/products/${encodeURIComponent(product.id)}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(product),
+          }).catch(() => {});
+          return savedSb;
         }
       } catch (err) {
         console.warn('Supabase saveProduct error, falling back to server:', err);
@@ -206,9 +205,7 @@ export const api = {
   async deleteProduct(productId: string): Promise<boolean> {
     if (isSupabaseConfigured) {
       try {
-        await supabaseFetch(`products?id=eq.${encodeURIComponent(productId)}`, {
-          method: 'DELETE',
-        });
+        await deleteProductFromSupabase(productId);
       } catch (err) {
         console.warn('Supabase deleteProduct error:', err);
       }
@@ -249,10 +246,7 @@ export const api = {
   async updateProductImages(productId: string, images: string[]): Promise<boolean> {
     if (isSupabaseConfigured) {
       try {
-        await supabaseFetch(`products?id=eq.${encodeURIComponent(productId)}`, {
-          method: 'PATCH',
-          body: JSON.stringify({ images }),
-        });
+        await updateProductImagesInSupabase(productId, images);
       } catch (err) {
         console.warn('Supabase updateProductImages error:', err);
       }
@@ -279,11 +273,7 @@ export const api = {
   async updateSettings(settings: StoreSettings): Promise<StoreSettings> {
     if (isSupabaseConfigured) {
       try {
-        await supabaseFetch('settings', {
-          method: 'POST',
-          headers: { 'Prefer': 'resolution=merge-duplicates,return=representation' },
-          body: JSON.stringify({ id: 'main_settings', ...settings }),
-        });
+        await saveSettingsToSupabase(settings);
       } catch (err) {
         console.warn('Supabase updateSettings error:', err);
       }
@@ -309,17 +299,6 @@ export const api = {
 
   // Create an order
   async createOrder(order: Order): Promise<Order> {
-    if (isSupabaseConfigured) {
-      try {
-        await supabaseFetch('orders', {
-          method: 'POST',
-          body: JSON.stringify(order),
-        });
-      } catch (err) {
-        console.warn('Supabase createOrder error:', err);
-      }
-    }
-
     try {
       const res = await fetch('/api/orders', {
         method: 'POST',
