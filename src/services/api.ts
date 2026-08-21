@@ -128,7 +128,7 @@ export const api = {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
         },
         body: JSON.stringify(product),
       });
@@ -138,6 +138,25 @@ export const api = {
     } catch (err) {
       console.error('Backend API updateProduct failed:', err);
       return product;
+    }
+  },
+
+  // Dedicated atomic update for product images array in database
+  async updateProductImages(productId: string, images: string[]): Promise<boolean> {
+    try {
+      const res = await fetch(`/api/products/${encodeURIComponent(productId)}/images`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+        },
+        body: JSON.stringify({ images }),
+      });
+      if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+      return true;
+    } catch (err) {
+      console.error('Backend API updateProductImages failed:', err);
+      return false;
     }
   },
 

@@ -27,6 +27,8 @@ import {
   Tag,
   Sliders,
   ArrowUpDown,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { Product, StoreSettings, FeaturedDrop, HeroSettings } from '../types';
 import { DEFAULT_FEATURED_DROP, DEFAULT_CATEGORIES } from '../data/defaultData';
@@ -300,53 +302,158 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   // -------------------- PRODUCT SPECS & PIC HANDLERS --------------------
   const handleAddFeature = () => {
     if (!newFeatureInput.trim()) return;
-    setProductForm({
-      ...productForm,
-      features: [...(productForm.features || []), newFeatureInput.trim()],
-    });
+    setProductForm((prev) => ({
+      ...prev,
+      features: [...(prev.features || []), newFeatureInput.trim()],
+    }));
     setNewFeatureInput('');
   };
 
   const handleRemoveFeature = (index: number) => {
-    const updated = (productForm.features || []).filter((_, i) => i !== index);
-    setProductForm({ ...productForm, features: updated });
+    setProductForm((prev) => ({
+      ...prev,
+      features: (prev.features || []).filter((_, i) => i !== index),
+    }));
   };
 
+  // Support adding single or multiple URLs (comma/newline/space separated)
   const handleAddImageUrl = () => {
     if (!newImageUrlInput.trim()) return;
-    setProductForm({
-      ...productForm,
-      images: [...(productForm.images || []), newImageUrlInput.trim()],
-    });
+    
+    // Split by newlines, commas, or whitespace
+    const splitUrls = newImageUrlInput
+      .split(/[\n,\r]+/)
+      .flatMap((line) => line.split(/\s+/))
+      .map((u) => u.trim())
+      .filter((u) => u.length > 0 && (u.startsWith('http://') || u.startsWith('https://') || u.startsWith('data:image/') || u.startsWith('/')));
+
+    const validUrls = splitUrls.length > 0 ? splitUrls : [newImageUrlInput.trim()];
+    const currentImages = productForm.images || [];
+    const updatedImages = [...currentImages, ...validUrls];
+
+    setProductForm((prev) => ({
+      ...prev,
+      images: updatedImages,
+    }));
     setNewImageUrlInput('');
+
+    // If actively editing a database product, immediately persist to central database
+    if (editingProductId) {
+      const existingProduct = products.find((p) => p.id === editingProductId);
+      if (existingProduct) {
+        onUpdateProduct({
+          ...existingProduct,
+          ...(productForm as Product),
+          id: editingProductId,
+          images: updatedImages,
+        });
+      }
+    }
   };
 
+  // Immediate permanent deletion of product image from state and live database
   const handleRemoveImage = (index: number) => {
-    const updated = (productForm.images || []).filter((_, i) => i !== index);
-    setProductForm({ ...productForm, images: updated });
+    const currentImages = productForm.images || [];
+    const updatedImages = currentImages.filter((_, i) => i !== index);
+
+    setProductForm((prev) => ({
+      ...prev,
+      images: updatedImages,
+    }));
+
+    // If editing an existing product in the database, immediately commit the filtered image array to backend DB
+    if (editingProductId) {
+      const existingProduct = products.find((p) => p.id === editingProductId);
+      if (existingProduct) {
+        onUpdateProduct({
+          ...existingProduct,
+          ...(productForm as Product),
+          id: editingProductId,
+          images: updatedImages,
+        });
+      }
+    }
   };
 
   const handleSetPrimaryImage = (index: number) => {
     const currentImages = [...(productForm.images || [])];
     if (index === 0 || index >= currentImages.length) return;
-    const selected = currentImages.splice(index, 1)[0];
+    const [selected] = currentImages.splice(index, 1);
     currentImages.unshift(selected);
-    setProductForm({ ...productForm, images: currentImages });
+
+    setProductForm((prev) => ({ ...prev, images: currentImages }));
+
+    if (editingProductId) {
+      const existingProduct = products.find((p) => p.id === editingProductId);
+      if (existingProduct) {
+        onUpdateProduct({
+          ...existingProduct,
+          ...(productForm as Product),
+          id: editingProductId,
+          images: currentImages,
+        });
+      }
+    }
+  };
+
+  const handleMoveImage = (index: number, direction: 'left' | 'right') => {
+    const currentImages = [...(productForm.images || [])];
+    const targetIndex = direction === 'left' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= currentImages.length) return;
+
+    const temp = currentImages[index];
+    currentImages[index] = currentImages[targetIndex];
+    currentImages[targetIndex] = temp;
+
+    setProductForm((prev) => ({ ...prev, images: currentImages }));
+
+    if (editingProductId) {
+      const existingProduct = products.find((p) => p.id === editingProductId);
+      if (existingProduct) {
+        onUpdateProduct({
+          ...existingProduct,
+          ...(productForm as Product),
+          id: editingProductId,
+          images: currentImages,
+        });
+      }
+    }
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      if (typeof event.target?.result === 'string') {
-        setProductForm({
-          ...productForm,
-          images: [event.target.result, ...(productForm.images || [])],
-        });
-      }
-    };
-    reader.readAsDataURL(file);
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (!file) continue;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (typeof event.target?.result === 'string') {
+          const newImg = event.target.result;
+          setProductForm((prev) => {
+            const updatedImages = [...(prev.images || []), newImg];
+            if (editingProductId) {
+              const existingProduct = products.find((p) => p.id === editingProductId);
+              if (existingProduct) {
+                onUpdateProduct({
+                  ...existingProduct,
+                  ...(prev as Product),
+                  id: editingProductId,
+                  images: updatedImages,
+                });
+              }
+            }
+            return {
+              ...prev,
+              images: updatedImages,
+            };
+          });
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+    e.target.value = '';
   };
 
   const handleToggleSize = (size: string) => {
@@ -1183,32 +1290,106 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 
                     {/* 5. Images Manager */}
                     <div className="space-y-3 border-t border-neutral-200 pt-4">
-                      <h5 className="text-[11px] font-bold uppercase tracking-wider text-neutral-500">5. Product Photos & Media</h5>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div>
+                          <h5 className="text-[11px] font-bold uppercase tracking-wider text-neutral-500">
+                            5. Product Photos & Media
+                          </h5>
+                          <p className="text-[11px] text-neutral-500">
+                            Manage product gallery. Primary image is shown on cards and thumbnails.
+                          </p>
+                        </div>
+                        {editingProductId && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            Live Database Sync Active
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Image Tiles Grid */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                         {(productForm.images || []).map((img, idx) => (
-                          <div key={idx} className="relative group bg-white rounded-lg border border-neutral-300 overflow-hidden aspect-square">
-                            <img src={img} alt="Product preview" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                            {idx === 0 && (
-                              <span className="absolute top-1 left-1 bg-neutral-900 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">
-                                Primary
-                              </span>
-                            )}
-                            <div className="absolute inset-0 bg-neutral-950/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 p-1">
+                          <div
+                            key={`${img.slice(0, 30)}-${idx}`}
+                            className="relative group bg-white rounded-xl border border-neutral-300 overflow-hidden aspect-square shadow-2xs flex flex-col justify-between"
+                          >
+                            <img
+                              src={img}
+                              alt={`Product image ${idx + 1}`}
+                              className="w-full h-full object-cover"
+                              referrerPolicy="no-referrer"
+                            />
+
+                            {/* Badges */}
+                            <div className="absolute top-1.5 left-1.5 flex items-center gap-1 z-10">
+                              {idx === 0 ? (
+                                <span className="bg-neutral-950/90 backdrop-blur-xs text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow-xs">
+                                  ★ Primary Cover
+                                </span>
+                              ) : (
+                                <span className="bg-neutral-900/70 text-white text-[9px] font-medium px-1.5 py-0.5 rounded">
+                                  #{idx + 1}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Direct Delete Button (Always Visible in top-right for ease of use) */}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRemoveImage(idx);
+                              }}
+                              className="absolute top-1.5 right-1.5 z-20 p-1.5 bg-rose-600/90 hover:bg-rose-600 text-white rounded-md shadow-xs transition-transform hover:scale-105 cursor-pointer"
+                              title="Delete this image permanently"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+
+                            {/* Action Overlay */}
+                            <div className="absolute inset-0 bg-neutral-950/65 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1.5 p-2 z-15">
                               {idx !== 0 && (
                                 <button
                                   type="button"
                                   onClick={() => handleSetPrimaryImage(idx)}
-                                  className="text-[10px] bg-white text-neutral-900 px-2 py-1 rounded font-bold hover:bg-neutral-100 cursor-pointer"
+                                  className="text-[10px] bg-white text-neutral-950 px-2.5 py-1 rounded font-bold hover:bg-neutral-100 cursor-pointer shadow-xs w-full text-center"
                                 >
                                   Make Primary
                                 </button>
                               )}
+
+                              {/* Reorder Buttons */}
+                              {(productForm.images || []).length > 1 && (
+                                <div className="flex items-center gap-1 w-full justify-center">
+                                  <button
+                                    type="button"
+                                    disabled={idx === 0}
+                                    onClick={() => handleMoveImage(idx, 'left')}
+                                    className="p-1 bg-white/90 text-neutral-900 rounded hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                                    title="Move image left"
+                                  >
+                                    <ChevronLeft className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={idx === (productForm.images || []).length - 1}
+                                    onClick={() => handleMoveImage(idx, 'right')}
+                                    className="p-1 bg-white/90 text-neutral-900 rounded hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                                    title="Move image right"
+                                  >
+                                    <ChevronRight className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              )}
+
                               <button
                                 type="button"
                                 onClick={() => handleRemoveImage(idx)}
-                                className="p-1 bg-rose-600 text-white rounded hover:bg-rose-700 cursor-pointer"
+                                className="text-[10px] bg-rose-600 text-white px-2 py-1 rounded font-bold hover:bg-rose-700 cursor-pointer w-full text-center flex items-center justify-center gap-1"
                               >
-                                <Trash2 className="w-3.5 h-3.5" />
+                                <Trash2 className="w-3 h-3" />
+                                <span>Delete Image</span>
                               </button>
                             </div>
                           </div>
@@ -1216,29 +1397,40 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                       </div>
 
                       {/* Image Input Options */}
-                      <div className="flex flex-col sm:flex-row gap-2 pt-1 text-xs">
-                        <div className="flex-1 flex gap-1.5">
-                          <input
-                            type="text"
-                            value={newImageUrlInput}
-                            onChange={(e) => setNewImageUrlInput(e.target.value)}
-                            placeholder="Paste Image URL (https://...)"
-                            className="flex-1 p-2 bg-white border border-neutral-300 rounded-lg text-xs focus:outline-hidden"
-                          />
-                          <button
-                            type="button"
-                            onClick={handleAddImageUrl}
-                            className="px-3 py-2 bg-neutral-900 text-white font-semibold rounded-lg hover:bg-neutral-800 cursor-pointer"
-                          >
-                            Add URL
-                          </button>
-                        </div>
+                      <div className="space-y-2 pt-1 text-xs">
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <div className="flex-1 flex gap-1.5">
+                            <input
+                              type="text"
+                              value={newImageUrlInput}
+                              onChange={(e) => setNewImageUrlInput(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  handleAddImageUrl();
+                                }
+                              }}
+                              placeholder="Paste image URL (Supports multiple URLs separated by commas or spaces)"
+                              className="flex-1 p-2.5 bg-white border border-neutral-300 rounded-lg text-xs focus:outline-hidden focus:ring-2 focus:ring-neutral-900"
+                            />
+                            <button
+                              type="button"
+                              onClick={handleAddImageUrl}
+                              className="px-4 py-2.5 bg-neutral-900 text-white font-semibold rounded-lg hover:bg-neutral-800 cursor-pointer whitespace-nowrap"
+                            >
+                              + Add Photo(s)
+                            </button>
+                          </div>
 
-                        <label className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-white border border-neutral-300 rounded-lg font-semibold text-neutral-700 hover:bg-neutral-100 cursor-pointer">
-                          <Upload className="w-3.5 h-3.5" />
-                          <span>Upload Image File</span>
-                          <input type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
-                        </label>
+                          <label className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-white border border-neutral-300 rounded-lg font-semibold text-neutral-700 hover:bg-neutral-100 cursor-pointer whitespace-nowrap shadow-2xs">
+                            <Upload className="w-3.5 h-3.5" />
+                            <span>Upload Files</span>
+                            <input type="file" multiple accept="image/*" onChange={handleFileUpload} className="hidden" />
+                          </label>
+                        </div>
+                        <p className="text-[10px] text-neutral-400">
+                          Supports Unsplash, Imgur, Cloudinary, direct URLs (https://...), and device uploads.
+                        </p>
                       </div>
                     </div>
 

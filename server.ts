@@ -472,18 +472,43 @@ async function startServer() {
     const { id } = req.params;
     const updated = req.body;
     let found = false;
+    let finalUpdatedProduct: any = null;
     inMemoryDb.products = inMemoryDb.products.map((p) => {
       if (p.id === id) {
         found = true;
-        return { ...p, ...updated, id };
+        finalUpdatedProduct = { ...p, ...updated, id };
+        return finalUpdatedProduct;
       }
       return p;
     });
     if (!found) {
-      inMemoryDb.products.unshift({ ...updated, id });
+      finalUpdatedProduct = { ...updated, id };
+      inMemoryDb.products.unshift(finalUpdatedProduct);
     }
     saveDatabase(inMemoryDb);
-    res.json({ success: true, product: updated, version: inMemoryDb.version });
+    res.json({ success: true, product: finalUpdatedProduct, version: inMemoryDb.version });
+  });
+
+  // Dedicated atomic endpoint to update product images array in database
+  app.patch('/api/products/:id/images', (req, res) => {
+    const { id } = req.params;
+    const { images } = req.body;
+    if (!Array.isArray(images)) {
+      return res.status(400).json({ error: 'Images array is required' });
+    }
+    let updatedProduct: any = null;
+    inMemoryDb.products = inMemoryDb.products.map((p) => {
+      if (p.id === id) {
+        updatedProduct = { ...p, images };
+        return updatedProduct;
+      }
+      return p;
+    });
+    if (updatedProduct) {
+      saveDatabase(inMemoryDb);
+      return res.json({ success: true, product: updatedProduct, version: inMemoryDb.version });
+    }
+    return res.status(404).json({ error: 'Product not found' });
   });
 
   app.delete('/api/products/:id', (req, res) => {
