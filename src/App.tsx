@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { Product, CartItem, Order, StoreSettings } from './types';
 import { INITIAL_PRODUCTS, DEFAULT_STORE_SETTINGS, DEFAULT_CATEGORIES } from './data/defaultData';
 import { api } from './services/api';
-import { TopNoticeBar } from './components/TopNoticeBar';
 import { Navbar } from './components/Navbar';
 import { HeroSection } from './components/HeroSection';
 import { CategoryFilters } from './components/CategoryFilters';
@@ -370,10 +369,7 @@ export default function App() {
 
   return (
     <div id="crownborn-app-root" className="min-h-screen min-h-[100dvh] w-full m-0 p-0 overflow-x-hidden bg-neutral-50 text-neutral-900 font-sans flex flex-col selection:bg-neutral-900 selection:text-white relative">
-      {/* 1. Top Notice Announcement */}
-      <TopNoticeBar settings={settings} />
-
-      {/* 2. Main Navigation Bar */}
+      {/* 1. Main Navigation Bar */}
       <Navbar
         settings={settings}
         cartCount={totalCartCount}

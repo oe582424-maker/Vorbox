@@ -21,13 +21,9 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ settings, onExploreCli
   const heroBadge = settings.heroSettings?.badgeText || 'Best Quality Products';
   const heroTitle = settings.heroSettings?.title || 'WEAR YOUR EDGE.';
   const heroSubtitle = settings.heroSettings?.subtitle || 'Delivered directly to your doorstep with Fast Delivery.';
-  const heroDescription = settings.heroSettings?.description || (
-    <>
-      Premium 100% combed cotton t-shirts, refined polos, signature panjabis, and everyday street fits. Zero hassle ordering with{' '}
-      <strong className="text-white font-medium">Cash on Delivery</strong> and instant{' '}
-      <strong className="text-emerald-400 font-medium">1-Click WhatsApp confirmation</strong>.
-    </>
-  );
+  const heroDescription =
+    settings.heroSettings?.description ||
+    'Crafted for those who demand excellence. Experience high-grade fabrics, tailored fits, and effortless Cash on Delivery ordering across Bangladesh.';
 
   return (
     <section id="hero-section" className="relative bg-neutral-900 text-white overflow-hidden">

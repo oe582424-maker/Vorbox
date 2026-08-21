@@ -90,7 +90,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
         title: 'WEAR YOUR EDGE.',
         subtitle: 'Delivered directly to your doorstep with Fast Delivery.',
         description:
-          'Premium 100% combed cotton t-shirts, refined polos, signature panjabis, and everyday street fits. Zero hassle ordering with Cash on Delivery and instant 1-Click WhatsApp confirmation.',
+          'Crafted for those who demand excellence. Experience high-grade fabrics, tailored fits, and effortless Cash on Delivery ordering across Bangladesh.',
         showDropCard: false,
       }
     );
