@@ -9,6 +9,40 @@ export interface StoreSyncData {
   lastUpdated: number;
 }
 
+// Optional Supabase Configuration from Environment
+const SUPABASE_URL = (import.meta as any).env?.VITE_SUPABASE_URL || '';
+const SUPABASE_ANON_KEY = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || '';
+
+const isSupabaseConfigured = Boolean(
+  SUPABASE_URL &&
+  SUPABASE_ANON_KEY &&
+  SUPABASE_URL.startsWith('http') &&
+  !SUPABASE_URL.includes('your-supabase')
+);
+
+// Helper for Supabase REST requests
+async function supabaseFetch(endpoint: string, options: RequestInit = {}): Promise<Response | null> {
+  if (!isSupabaseConfigured) return null;
+  try {
+    const url = `${SUPABASE_URL.replace(/\/$/, '')}/rest/v1/${endpoint}`;
+    const headers = {
+      'apikey': SUPABASE_ANON_KEY,
+      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      'Content-Type': 'application/json',
+      'Prefer': 'return=representation',
+      ...(options.headers || {}),
+    };
+    return await fetch(url, { ...options, headers });
+  } catch (e) {
+    console.warn('Supabase REST fetch error:', e);
+    return null;
+  }
+}
+
+// ==========================================
+// CENTRAL PERSISTENT API SERVICE
+// ==========================================
+
 export const api = {
   // Subscribe to real-time store updates via SSE
   subscribeToStoreUpdates(onUpdate: (data: StoreSyncData) => void): () => void {
@@ -63,6 +97,44 @@ export const api = {
     };
   },
 
+  // 1. GETs master product catalog from remote cloud endpoint / Supabase / Express Server
+  async fetchProducts(): Promise<Product[]> {
+    if (isSupabaseConfigured) {
+      try {
+        const sbRes = await supabaseFetch('products?select=*');
+        if (sbRes && sbRes.ok) {
+          const data = await sbRes.json();
+          if (Array.isArray(data) && data.length > 0) {
+            return data;
+          }
+        }
+      } catch (err) {
+        console.warn('Supabase fetchProducts failed, falling back to REST server:', err);
+      }
+    }
+
+    try {
+      const res = await fetch(`/api/products?t=${Date.now()}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+        },
+      });
+      if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+      const data = await res.json();
+      return Array.isArray(data) ? data : INITIAL_PRODUCTS;
+    } catch (err) {
+      console.warn('REST API fetchProducts failed:', err);
+      return INITIAL_PRODUCTS;
+    }
+  },
+
+  // Alias for fetchProducts
+  async getProducts(): Promise<Product[]> {
+    return this.fetchProducts();
+  },
+
   // Fetch full store data from server (products, settings, orders)
   async getStoreData(): Promise<StoreSyncData | null> {
     try {
@@ -82,47 +154,26 @@ export const api = {
     }
   },
 
-  // Fetch live products list directly
-  async getProducts(): Promise<Product[] | null> {
-    try {
-      const res = await fetch(`/api/products?t=${Date.now()}`, {
-        cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-        },
-      });
-      if (!res.ok) throw new Error(`HTTP error ${res.status}`);
-      const data = await res.json();
-      return Array.isArray(data) ? data : null;
-    } catch (err) {
-      console.warn('Backend API getProducts failed:', err);
-      return null;
+  // 2. POSTs/PUTs product updates to remote cloud database
+  async saveProduct(product: Product): Promise<Product> {
+    // If Supabase is configured
+    if (isSupabaseConfigured) {
+      try {
+        const sbRes = await supabaseFetch('products', {
+          method: 'POST',
+          headers: { 'Prefer': 'resolution=merge-duplicates,return=representation' },
+          body: JSON.stringify(product),
+        });
+        if (sbRes && sbRes.ok) {
+          const [saved] = await sbRes.json();
+          if (saved) return saved;
+        }
+      } catch (err) {
+        console.warn('Supabase saveProduct error, falling back to server:', err);
+      }
     }
-  },
 
-  // Save/Create a product directly in database
-  async createProduct(product: Product): Promise<Product | null> {
-    try {
-      const res = await fetch('/api/products', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache',
-        },
-        body: JSON.stringify(product),
-      });
-      if (!res.ok) throw new Error(`HTTP error ${res.status}`);
-      const data = await res.json();
-      return data.product || product;
-    } catch (err) {
-      console.error('Backend API createProduct failed:', err);
-      return product;
-    }
-  },
-
-  // Update an existing product in database
-  async updateProduct(product: Product): Promise<Product | null> {
+    // Default to Express persistent cloud backend
     try {
       const res = await fetch(`/api/products/${encodeURIComponent(product.id)}`, {
         method: 'PUT',
@@ -136,13 +187,77 @@ export const api = {
       const data = await res.json();
       return data.product || product;
     } catch (err) {
-      console.error('Backend API updateProduct failed:', err);
+      console.error('Backend API saveProduct failed:', err);
       return product;
+    }
+  },
+
+  // Alias for creating a new product
+  async createProduct(product: Product): Promise<Product> {
+    return this.saveProduct(product);
+  },
+
+  // Alias for updating an existing product
+  async updateProduct(product: Product): Promise<Product> {
+    return this.saveProduct(product);
+  },
+
+  // 3. Sends a hard DELETE HTTP request to remote database
+  async deleteProduct(productId: string): Promise<boolean> {
+    if (isSupabaseConfigured) {
+      try {
+        await supabaseFetch(`products?id=eq.${encodeURIComponent(productId)}`, {
+          method: 'DELETE',
+        });
+      } catch (err) {
+        console.warn('Supabase deleteProduct error:', err);
+      }
+    }
+
+    try {
+      const res = await fetch(`/api/products/${encodeURIComponent(productId)}`, {
+        method: 'DELETE',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+        },
+      });
+      if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+      return true;
+    } catch (err) {
+      console.error('Backend API deleteProduct failed:', err);
+      return false;
+    }
+  },
+
+  // 4. Sends a PATCH/PUT request with the updated image array so deleted photos stay permanently deleted across all devices
+  async deleteProductImage(productId: string, imageIndex: number): Promise<boolean> {
+    try {
+      // First get current product catalog
+      const products = await this.fetchProducts();
+      const product = products.find((p) => p.id === productId);
+      if (!product || !Array.isArray(product.images)) return false;
+
+      const filteredImages = product.images.filter((_, idx) => idx !== imageIndex);
+      return await this.updateProductImages(productId, filteredImages);
+    } catch (err) {
+      console.error('Backend API deleteProductImage failed:', err);
+      return false;
     }
   },
 
   // Dedicated atomic update for product images array in database
   async updateProductImages(productId: string, images: string[]): Promise<boolean> {
+    if (isSupabaseConfigured) {
+      try {
+        await supabaseFetch(`products?id=eq.${encodeURIComponent(productId)}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ images }),
+        });
+      } catch (err) {
+        console.warn('Supabase updateProductImages error:', err);
+      }
+    }
+
     try {
       const res = await fetch(`/api/products/${encodeURIComponent(productId)}/images`, {
         method: 'PATCH',
@@ -160,31 +275,26 @@ export const api = {
     }
   },
 
-  // Permanently delete a product from database
-  async deleteProduct(productId: string): Promise<boolean> {
-    try {
-      const res = await fetch(`/api/products/${encodeURIComponent(productId)}`, {
-        method: 'DELETE',
-        headers: {
-          'Cache-Control': 'no-cache',
-        },
-      });
-      if (!res.ok) throw new Error(`HTTP error ${res.status}`);
-      return true;
-    } catch (err) {
-      console.error('Backend API deleteProduct failed:', err);
-      return false;
-    }
-  },
-
   // Update Store Settings & Featured Drop
   async updateSettings(settings: StoreSettings): Promise<StoreSettings> {
+    if (isSupabaseConfigured) {
+      try {
+        await supabaseFetch('settings', {
+          method: 'POST',
+          headers: { 'Prefer': 'resolution=merge-duplicates,return=representation' },
+          body: JSON.stringify({ id: 'main_settings', ...settings }),
+        });
+      } catch (err) {
+        console.warn('Supabase updateSettings error:', err);
+      }
+    }
+
     try {
       const res = await fetch('/api/settings', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
         },
         body: JSON.stringify(settings),
       });
@@ -199,6 +309,17 @@ export const api = {
 
   // Create an order
   async createOrder(order: Order): Promise<Order> {
+    if (isSupabaseConfigured) {
+      try {
+        await supabaseFetch('orders', {
+          method: 'POST',
+          body: JSON.stringify(order),
+        });
+      } catch (err) {
+        console.warn('Supabase createOrder error:', err);
+      }
+    }
+
     try {
       const res = await fetch('/api/orders', {
         method: 'POST',
@@ -255,3 +376,16 @@ export const api = {
     }
   },
 };
+
+// Export standalone named functions for seamless direct imports
+export const fetchProducts = () => api.fetchProducts();
+export const getProducts = () => api.getProducts();
+export const saveProduct = (product: Product) => api.saveProduct(product);
+export const deleteProduct = (id: string) => api.deleteProduct(id);
+export const deleteProductImage = (productId: string, imageIndex: number) =>
+  api.deleteProductImage(productId, imageIndex);
+export const updateProductImages = (productId: string, images: string[]) =>
+  api.updateProductImages(productId, images);
+export const getStoreData = () => api.getStoreData();
+export const updateSettings = (settings: StoreSettings) => api.updateSettings(settings);
+export const createOrder = (order: Order) => api.createOrder(order);
