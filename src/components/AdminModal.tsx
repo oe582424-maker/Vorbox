@@ -33,6 +33,7 @@ import {
 import { Product, StoreSettings, FeaturedDrop, HeroSettings } from '../types';
 import { DEFAULT_FEATURED_DROP, DEFAULT_CATEGORIES } from '../data/defaultData';
 import { formatBDT, cleanPhoneForWhatsApp } from '../utils/helpers';
+import { saveProductToDB, deleteProductFromDB } from '../services/storage';
 
 interface AdminModalProps {
   isOpen: boolean;
@@ -352,30 +353,34 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   };
 
   // Immediate permanent deletion of product image from state and live database
-  const handleRemoveImage = (index: number) => {
+  const handleRemoveImage = async (imageIndexToDelete: number) => {
+    // Immutable array filter to guarantee state change detection
     const currentImages = productForm.images || [];
-    const updatedImages = currentImages.filter((_, i) => i !== index);
+    const updatedImages = currentImages.filter((_, index) => index !== imageIndexToDelete);
 
     setProductForm((prev) => ({
       ...prev,
       images: updatedImages,
     }));
 
-    // If editing an existing product in the database, immediately commit the filtered image array to backend DB
+    // If editing an existing product in the database, immediately commit the filtered image array to backend DB and IndexedDB
     if (editingProductId) {
       const existingProduct = products.find((p) => p.id === editingProductId);
       if (existingProduct) {
-        onUpdateProduct({
+        const updatedProduct: Product = {
           ...existingProduct,
           ...(productForm as Product),
           id: editingProductId,
           images: updatedImages,
-        });
+        };
+        await saveProductToDB(updatedProduct);
+        window.dispatchEvent(new Event('crownborn_db_updated'));
+        onUpdateProduct(updatedProduct);
       }
     }
   };
 
-  const handleSetPrimaryImage = (index: number) => {
+  const handleSetPrimaryImage = async (index: number) => {
     const currentImages = [...(productForm.images || [])];
     if (index === 0 || index >= currentImages.length) return;
     const [selected] = currentImages.splice(index, 1);
@@ -386,17 +391,20 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     if (editingProductId) {
       const existingProduct = products.find((p) => p.id === editingProductId);
       if (existingProduct) {
-        onUpdateProduct({
+        const updatedProduct: Product = {
           ...existingProduct,
           ...(productForm as Product),
           id: editingProductId,
           images: currentImages,
-        });
+        };
+        await saveProductToDB(updatedProduct);
+        window.dispatchEvent(new Event('crownborn_db_updated'));
+        onUpdateProduct(updatedProduct);
       }
     }
   };
 
-  const handleMoveImage = (index: number, direction: 'left' | 'right') => {
+  const handleMoveImage = async (index: number, direction: 'left' | 'right') => {
     const currentImages = [...(productForm.images || [])];
     const targetIndex = direction === 'left' ? index - 1 : index + 1;
     if (targetIndex < 0 || targetIndex >= currentImages.length) return;
@@ -410,12 +418,15 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     if (editingProductId) {
       const existingProduct = products.find((p) => p.id === editingProductId);
       if (existingProduct) {
-        onUpdateProduct({
+        const updatedProduct: Product = {
           ...existingProduct,
           ...(productForm as Product),
           id: editingProductId,
           images: currentImages,
-        });
+        };
+        await saveProductToDB(updatedProduct);
+        window.dispatchEvent(new Event('crownborn_db_updated'));
+        onUpdateProduct(updatedProduct);
       }
     }
   };
@@ -546,8 +557,8 @@ export const AdminModal: React.FC<AdminModalProps> = ({
         originalPrice: productForm.originalPrice ? Number(productForm.originalPrice) : undefined,
         description: cleanedDescription,
         features: cleanedFeatures,
-        fabric: cleanedFabric,
-        gsm: cleanedGsm,
+        fabric: cleanedFabric || '',
+        gsm: cleanedGsm || '',
         images: productForm.images?.length ? productForm.images : ['https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=1000&q=80'],
         sizes: cleanedSizes,
         colors: cleanedColors,
@@ -555,19 +566,22 @@ export const AdminModal: React.FC<AdminModalProps> = ({
         featured: productForm.featured ?? false,
         tag: productForm.tag?.trim() || undefined,
       };
+      saveProductToDB(updatedProduct).then(() => {
+        window.dispatchEvent(new Event('crownborn_db_updated'));
+      });
       onUpdateProduct(updatedProduct);
       setEditingProductId(null);
     } else {
       const newProd: Product = {
-        id: `cb-${Date.now().toString().slice(-5)}`,
+        id: productForm.id || `cb_${Date.now()}`,
         name: productForm.name.trim(),
         category: finalCategory,
         price: Number(productForm.price) || 500,
         originalPrice: productForm.originalPrice ? Number(productForm.originalPrice) : undefined,
         description: cleanedDescription,
         features: cleanedFeatures,
-        fabric: cleanedFabric,
-        gsm: cleanedGsm,
+        fabric: cleanedFabric || '',
+        gsm: cleanedGsm || '',
         images: productForm.images?.length ? productForm.images : ['https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=1000&q=80'],
         sizes: cleanedSizes,
         colors: cleanedColors,
@@ -575,6 +589,9 @@ export const AdminModal: React.FC<AdminModalProps> = ({
         featured: productForm.featured ?? false,
         tag: productForm.tag?.trim() || undefined,
       };
+      saveProductToDB(newProd).then(() => {
+        window.dispatchEvent(new Event('crownborn_db_updated'));
+      });
       onAddProduct(newProd);
     }
     setIsAddingProduct(false);
@@ -1530,8 +1547,10 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                             </button>
                             <button
                               type="button"
-                              onClick={() => {
-                                if (window.confirm(`Delete "${prod.name}" permanently from the store?`)) {
+                              onClick={async () => {
+                                if (window.confirm(`Are you sure you want to delete "${prod.name}"?`)) {
+                                  await deleteProductFromDB(prod.id);
+                                  window.dispatchEvent(new Event('crownborn_db_updated'));
                                   onDeleteProduct(prod.id);
                                 }
                               }}

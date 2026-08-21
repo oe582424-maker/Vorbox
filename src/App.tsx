@@ -2,6 +2,14 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { Product, CartItem, Order, StoreSettings } from './types';
 import { INITIAL_PRODUCTS, DEFAULT_STORE_SETTINGS, DEFAULT_CATEGORIES } from './data/defaultData';
 import { api } from './services/api';
+import {
+  getStoredProducts,
+  saveProductToDB,
+  deleteProductFromDB,
+  saveAllProductsToDB,
+  getStoredSettings,
+  saveSettingsToDB,
+} from './services/storage';
 import { Navbar } from './components/Navbar';
 import { HeroSection } from './components/HeroSection';
 import { CategoryFilters } from './components/CategoryFilters';
@@ -97,24 +105,41 @@ export default function App() {
       isSyncingRef.current = true;
       const data = await api.getStoreData();
       if (data) {
-        if (Array.isArray(data.products)) {
+        if (Array.isArray(data.products) && data.products.length > 0) {
           setProducts(data.products);
+          saveAllProductsToDB(data.products);
         }
         if (data.settings) {
-          setSettings((prev) => ({
-            ...prev,
+          const mergedSettings = {
+            ...DEFAULT_STORE_SETTINGS,
             ...data.settings,
-            adminPassword: data.settings.adminPassword || prev.adminPassword,
-            heroSettings: data.settings.heroSettings || prev.heroSettings,
-            featuredDrop: data.settings.featuredDrop || prev.featuredDrop,
-          }));
+            adminPassword: data.settings.adminPassword || DEFAULT_STORE_SETTINGS.adminPassword,
+            heroSettings: data.settings.heroSettings || DEFAULT_STORE_SETTINGS.heroSettings,
+            featuredDrop: data.settings.featuredDrop || DEFAULT_STORE_SETTINGS.featuredDrop,
+          };
+          setSettings(mergedSettings);
+          saveSettingsToDB(mergedSettings);
         }
         if (Array.isArray(data.orders)) {
           setOrders(data.orders);
         }
+      } else {
+        // Fallback to local IndexedDB if network is offline
+        const localProds = await getStoredProducts();
+        if (localProds && localProds.length > 0) {
+          setProducts(localProds);
+        }
+        const localSettings = await getStoredSettings();
+        if (localSettings) {
+          setSettings(localSettings);
+        }
       }
     } catch (err) {
       console.warn('Sync poll error:', err);
+      const localProds = await getStoredProducts();
+      if (localProds && localProds.length > 0) {
+        setProducts(localProds);
+      }
     } finally {
       isSyncingRef.current = false;
     }
@@ -122,35 +147,55 @@ export default function App() {
 
   // Sync on initial mount + live real-time SSE listener + background polling across all visitor devices
   useEffect(() => {
-    // 1. Initial snapshot load
+    // 0. Instant initial load from IndexedDB if available
+    getStoredProducts().then((cachedProds) => {
+      if (cachedProds && cachedProds.length > 0) {
+        setProducts(cachedProds);
+      }
+    });
+
+    // 1. Initial server snapshot load
     fetchLatestStoreData();
 
     // 2. Real-time Server-Sent Events (instant global update when admin saves in any browser)
     const unsubscribeSSE = api.subscribeToStoreUpdates((syncData) => {
       if (!syncData) return;
       if (syncData.settings) {
-        setSettings((prev) => ({
-          ...prev,
+        const mergedSettings = {
+          ...DEFAULT_STORE_SETTINGS,
           ...syncData.settings,
-          adminPassword: syncData.settings.adminPassword || prev.adminPassword,
-          heroSettings: syncData.settings.heroSettings || prev.heroSettings,
-          featuredDrop: syncData.settings.featuredDrop || prev.featuredDrop,
-        }));
+          adminPassword: syncData.settings.adminPassword || DEFAULT_STORE_SETTINGS.adminPassword,
+          heroSettings: syncData.settings.heroSettings || DEFAULT_STORE_SETTINGS.heroSettings,
+          featuredDrop: syncData.settings.featuredDrop || DEFAULT_STORE_SETTINGS.featuredDrop,
+        };
+        setSettings(mergedSettings);
+        saveSettingsToDB(mergedSettings);
       }
-      if (Array.isArray(syncData.products)) {
+      if (Array.isArray(syncData.products) && syncData.products.length > 0) {
         setProducts(syncData.products);
+        saveAllProductsToDB(syncData.products);
       }
       if (Array.isArray(syncData.orders)) {
         setOrders(syncData.orders);
       }
     });
 
-    // 3. Fallback background polling every 2.5 seconds
+    // 3. Listen to local IndexedDB custom events across tabs or local components
+    const onDbUpdated = async () => {
+      const stored = await getStoredProducts();
+      if (stored && stored.length > 0) {
+        setProducts(stored);
+      }
+      fetchLatestStoreData();
+    };
+    window.addEventListener('crownborn_db_updated', onDbUpdated);
+
+    // 4. Fallback background polling every 2.5 seconds
     const interval = setInterval(() => {
       fetchLatestStoreData();
     }, 2500);
 
-    // 4. Instant sync on window focus or tab visibility change
+    // 5. Instant sync on window focus or tab visibility change
     const onVisibilityOrFocus = () => {
       if (document.visibilityState === 'visible') {
         fetchLatestStoreData();
@@ -162,6 +207,7 @@ export default function App() {
     return () => {
       unsubscribeSSE();
       clearInterval(interval);
+      window.removeEventListener('crownborn_db_updated', onDbUpdated);
       window.removeEventListener('focus', onVisibilityOrFocus);
       document.removeEventListener('visibilitychange', onVisibilityOrFocus);
     };
@@ -298,6 +344,8 @@ export default function App() {
       const saved = await api.createProduct(newProd);
       const finalProduct = saved || newProd;
       setProducts((prev) => [finalProduct, ...prev.filter((p) => p.id !== finalProduct.id)]);
+      await saveProductToDB(finalProduct);
+      window.dispatchEvent(new Event('crownborn_db_updated'));
       await fetchLatestStoreData();
     } catch (err) {
       console.error('Error adding product:', err);
@@ -312,6 +360,8 @@ export default function App() {
       setProducts((prev) =>
         prev.map((p) => (p.id === finalProduct.id ? finalProduct : p))
       );
+      await saveProductToDB(finalProduct);
+      window.dispatchEvent(new Event('crownborn_db_updated'));
       await fetchLatestStoreData();
     } catch (err) {
       console.error('Error updating product:', err);
@@ -322,6 +372,8 @@ export default function App() {
     try {
       purgeCatalogCache();
       setProducts((prev) => prev.filter((p) => p.id !== productId));
+      await deleteProductFromDB(productId);
+      window.dispatchEvent(new Event('crownborn_db_updated'));
       await api.deleteProduct(productId);
       await fetchLatestStoreData();
     } catch (err) {
