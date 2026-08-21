@@ -1,5 +1,5 @@
 import { Order, Product, StoreSettings } from '../types';
-import { DEFAULT_STORE_SETTINGS, INITIAL_PRODUCTS } from '../data/defaultData';
+import { DEFAULT_STORE_SETTINGS, INITIAL_PRODUCTS, DEFAULT_CATEGORIES } from '../data/defaultData';
 import {
   isSupabaseConfigured,
   fetchProductsFromSupabase,
@@ -7,6 +7,8 @@ import {
   updateProductInSupabase,
   updateProductImagesInSupabase,
   deleteProductFromSupabase,
+  fetchCategoriesFromSupabase,
+  saveCategoriesToSupabase,
   fetchSettingsFromSupabase,
   saveSettingsToSupabase,
 } from '../lib/supabase';
@@ -35,7 +37,7 @@ export const api = {
 
     const connect = () => {
       try {
-        eventSource = new EventSource('/api/events');
+        eventSource = new EventSource(`/api/events?t=${Date.now()}`);
 
         eventSource.onmessage = (event) => {
           try {
@@ -96,6 +98,7 @@ export const api = {
         headers: {
           'Cache-Control': 'no-cache, no-store, must-revalidate',
           'Pragma': 'no-cache',
+          'Expires': '0',
         },
       });
       if (!res.ok) throw new Error(`HTTP error ${res.status}`);
@@ -112,6 +115,71 @@ export const api = {
     return this.fetchProducts();
   },
 
+  // Fetch dynamic categories from Supabase / Express backend
+  async fetchCategories(): Promise<string[]> {
+    if (isSupabaseConfigured) {
+      try {
+        const sbCats = await fetchCategoriesFromSupabase();
+        if (sbCats && Array.isArray(sbCats) && sbCats.length > 0) {
+          return sbCats;
+        }
+      } catch (err) {
+        console.warn('Supabase fetchCategories failed:', err);
+      }
+    }
+
+    try {
+      const res = await fetch(`/api/categories?t=${Date.now()}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+        },
+      });
+      if (res.ok) {
+        const cats = await res.json();
+        if (Array.isArray(cats) && cats.length > 0) {
+          return cats;
+        }
+      }
+    } catch (err) {
+      console.warn('Backend API fetchCategories failed:', err);
+    }
+    return DEFAULT_CATEGORIES;
+  },
+
+  // Update dynamic categories in Supabase AND Express backend
+  async updateCategories(categories: string[]): Promise<string[]> {
+    // 1. Supabase persistence
+    if (isSupabaseConfigured) {
+      try {
+        await saveCategoriesToSupabase(categories);
+      } catch (err) {
+        console.warn('Supabase saveCategories error:', err);
+      }
+    }
+
+    // 2. Express Backend persistence
+    try {
+      const res = await fetch('/api/categories', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+        },
+        body: JSON.stringify({ categories }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return data.categories || categories;
+      }
+    } catch (err) {
+      console.error('Backend API updateCategories error:', err);
+    }
+
+    return categories;
+  },
+
   // Fetch full store data from server (products, settings, orders)
   async getStoreData(): Promise<StoreSyncData | null> {
     try {
@@ -125,11 +193,24 @@ export const api = {
       if (!res.ok) throw new Error(`HTTP error ${res.status}`);
       const data: StoreSyncData = await res.json();
 
-      // If Supabase has products, combine them
+      // If Supabase has products, override or combine them
       if (isSupabaseConfigured) {
         const sbProducts = await fetchProductsFromSupabase();
         if (sbProducts && sbProducts.length > 0) {
           data.products = sbProducts;
+        }
+
+        const sbCats = await fetchCategoriesFromSupabase();
+        if (sbCats && sbCats.length > 0) {
+          data.settings.categories = sbCats;
+        }
+
+        const sbSettings = await fetchSettingsFromSupabase();
+        if (sbSettings) {
+          data.settings = {
+            ...data.settings,
+            ...sbSettings,
+          };
         }
       }
 
@@ -138,15 +219,20 @@ export const api = {
       console.warn('Backend API getStoreData failed:', err);
       if (isSupabaseConfigured) {
         const sbProducts = await fetchProductsFromSupabase();
-        if (sbProducts && sbProducts.length > 0) {
-          return {
-            products: sbProducts,
-            settings: DEFAULT_STORE_SETTINGS,
-            orders: [],
-            version: 1,
-            lastUpdated: Date.now(),
-          };
-        }
+        const sbCats = await fetchCategoriesFromSupabase();
+        const sbSettings = await fetchSettingsFromSupabase();
+
+        return {
+          products: sbProducts && sbProducts.length > 0 ? sbProducts : INITIAL_PRODUCTS,
+          settings: {
+            ...DEFAULT_STORE_SETTINGS,
+            ...(sbSettings || {}),
+            categories: sbCats && sbCats.length > 0 ? sbCats : (sbSettings?.categories || DEFAULT_CATEGORIES),
+          },
+          orders: [],
+          version: 1,
+          lastUpdated: Date.now(),
+        };
       }
       return null;
     }
@@ -274,6 +360,9 @@ export const api = {
     if (isSupabaseConfigured) {
       try {
         await saveSettingsToSupabase(settings);
+        if (Array.isArray(settings.categories)) {
+          await saveCategoriesToSupabase(settings.categories);
+        }
       } catch (err) {
         console.warn('Supabase updateSettings error:', err);
       }
@@ -359,6 +448,8 @@ export const api = {
 // Export standalone named functions for seamless direct imports
 export const fetchProducts = () => api.fetchProducts();
 export const getProducts = () => api.getProducts();
+export const fetchCategories = () => api.fetchCategories();
+export const updateCategories = (categories: string[]) => api.updateCategories(categories);
 export const saveProduct = (product: Product) => api.saveProduct(product);
 export const deleteProduct = (id: string) => api.deleteProduct(id);
 export const deleteProductImage = (productId: string, imageIndex: number) =>

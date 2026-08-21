@@ -31,6 +31,12 @@ export function getSupabaseClient(): SupabaseClient | null {
           persistSession: false,
           autoRefreshToken: false,
         },
+        global: {
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+          },
+        },
       });
     } catch (err) {
       console.warn('Failed to initialize Supabase client:', err);
@@ -86,7 +92,12 @@ export function supabaseRowToProduct(row: any): Product {
     sizes: Array.isArray(row.sizes) ? row.sizes : ['S', 'M', 'L', 'XL'],
     colors: Array.isArray(row.colors) ? row.colors : [],
     images: Array.isArray(row.images) ? row.images : [],
-    inStock: row.in_stock !== undefined ? Boolean(row.in_stock) : row.inStock !== undefined ? Boolean(row.inStock) : true,
+    inStock:
+      row.in_stock !== undefined
+        ? Boolean(row.in_stock)
+        : row.inStock !== undefined
+        ? Boolean(row.inStock)
+        : true,
     featured: Boolean(row.featured),
     tag: row.tag || undefined,
   };
@@ -107,11 +118,11 @@ export async function fetchProductsFromSupabase(): Promise<Product[] | null> {
       .order('updated_at', { ascending: false });
 
     if (error) {
-      console.warn('Supabase fetch products error:', error.message);
+      console.warn('Supabase fetch products notice:', error.message);
       return null;
     }
 
-    if (Array.isArray(data)) {
+    if (Array.isArray(data) && data.length > 0) {
       return data.map(supabaseRowToProduct);
     }
     return null;
@@ -133,7 +144,7 @@ export async function insertProductToSupabase(product: Product): Promise<Product
       .select();
 
     if (error) {
-      console.warn('Supabase upsert error:', error.message);
+      console.warn('Supabase upsert product error:', error.message);
       return null;
     }
 
@@ -187,7 +198,7 @@ export async function updateProductInSupabase(
       .select();
 
     if (error) {
-      console.warn('Supabase update error:', error.message);
+      console.warn('Supabase update product error:', error.message);
       return null;
     }
 
@@ -246,7 +257,76 @@ export async function deleteProductFromSupabase(productId: string): Promise<bool
   }
 }
 
-// Store Settings Support in Supabase (if 'settings' table exists)
+// ==========================================
+// DYNAMIC CATEGORIES PERSISTENCE IN SUPABASE
+// ==========================================
+
+export async function fetchCategoriesFromSupabase(): Promise<string[] | null> {
+  const client = getSupabaseClient();
+  if (!client) return null;
+
+  try {
+    // 1. Try dedicated 'categories' table first
+    const { data, error } = await client
+      .from('categories')
+      .select('name, position')
+      .order('position', { ascending: true });
+
+    if (!error && Array.isArray(data) && data.length > 0) {
+      return data.map((item: any) => String(item.name || item.id || item));
+    }
+
+    // 2. Fallback to 'settings' table categories field
+    const settings = await fetchSettingsFromSupabase();
+    if (settings && Array.isArray(settings.categories) && settings.categories.length > 0) {
+      return settings.categories;
+    }
+
+    return null;
+  } catch (err) {
+    return null;
+  }
+}
+
+export async function saveCategoriesToSupabase(categories: string[]): Promise<boolean> {
+  const client = getSupabaseClient();
+  if (!client) return false;
+
+  try {
+    // 1. Save to dedicated 'categories' table if it exists
+    const categoryRows = categories.map((name, index) => ({
+      id: name.toLowerCase().replace(/[^a-z0-9]/g, '_'),
+      name,
+      position: index,
+      updated_at: new Date().toISOString(),
+    }));
+
+    // Replace category rows
+    try {
+      await client.from('categories').delete().neq('id', '___non_existent___');
+      await client.from('categories').insert(categoryRows);
+    } catch (e) {
+      // ignore if categories table is not created
+    }
+
+    // 2. Also save into settings row for redundancy
+    const existingSettings = (await fetchSettingsFromSupabase()) || ({} as StoreSettings);
+    await saveSettingsToSupabase({
+      ...existingSettings,
+      categories,
+    });
+
+    return true;
+  } catch (err) {
+    console.warn('Supabase saveCategoriesToSupabase error:', err);
+    return false;
+  }
+}
+
+// ==========================================
+// STORE SETTINGS SUPPORT IN SUPABASE
+// ==========================================
+
 export async function fetchSettingsFromSupabase(): Promise<StoreSettings | null> {
   const client = getSupabaseClient();
   if (!client) return null;
@@ -258,7 +338,7 @@ export async function fetchSettingsFromSupabase(): Promise<StoreSettings | null>
       .eq('id', 'main_settings')
       .single();
 
-    if (error || !data) return null;
+    if (error || !data || !data.data) return null;
     return data.data as StoreSettings;
   } catch (err) {
     return null;
@@ -270,18 +350,16 @@ export async function saveSettingsToSupabase(settings: StoreSettings): Promise<b
   if (!client) return false;
 
   try {
-    const { error } = await client
-      .from('settings')
-      .upsert(
-        [
-          {
-            id: 'main_settings',
-            data: settings,
-            updated_at: new Date().toISOString(),
-          },
-        ],
-        { onConflict: 'id' }
-      );
+    const { error } = await client.from('settings').upsert(
+      [
+        {
+          id: 'main_settings',
+          data: settings,
+          updated_at: new Date().toISOString(),
+        },
+      ],
+      { onConflict: 'id' }
+    );
 
     return !error;
   } catch (err) {

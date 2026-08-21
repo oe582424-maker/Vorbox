@@ -34,6 +34,7 @@ import { Product, StoreSettings, FeaturedDrop, HeroSettings } from '../types';
 import { DEFAULT_FEATURED_DROP, DEFAULT_CATEGORIES } from '../data/defaultData';
 import { formatBDT, cleanPhoneForWhatsApp } from '../utils/helpers';
 import { saveProductToDB, deleteProductFromDB } from '../services/storage';
+import { updateCategories } from '../services/api';
 
 interface AdminModalProps {
   isOpen: boolean;
@@ -181,7 +182,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   };
 
   // -------------------- CATEGORY MANAGEMENT HANDLERS --------------------
-  const handleAddCategory = (e: React.FormEvent) => {
+  const handleAddCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = newCategoryName.trim();
     if (!trimmed) return;
@@ -193,10 +194,12 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     const newSettings = { ...formSettings, categories: updated };
     setFormSettings(newSettings);
     onUpdateSettings(newSettings);
+    await updateCategories(updated);
+    window.dispatchEvent(new Event('crownborn_db_updated'));
     setNewCategoryName('');
   };
 
-  const handleSaveEditedCategory = (index: number) => {
+  const handleSaveEditedCategory = async (index: number) => {
     const trimmed = editingCategoryValue.trim();
     if (!trimmed) {
       setEditingCategoryIndex(null);
@@ -208,6 +211,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     const newSettings = { ...formSettings, categories: updated };
     setFormSettings(newSettings);
     onUpdateSettings(newSettings);
+    await updateCategories(updated);
 
     // Also update any products currently assigned to oldName
     products.forEach((p) => {
@@ -216,11 +220,12 @@ export const AdminModal: React.FC<AdminModalProps> = ({
       }
     });
 
+    window.dispatchEvent(new Event('crownborn_db_updated'));
     setEditingCategoryIndex(null);
     setEditingCategoryValue('');
   };
 
-  const handleDeleteCategory = (catName: string) => {
+  const handleDeleteCategory = async (catName: string) => {
     const assignedProductsCount = products.filter((p) => p.category === catName).length;
     if (assignedProductsCount > 0) {
       const confirmDelete = window.confirm(
@@ -240,13 +245,17 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     const newSettings = { ...formSettings, categories: updated.length ? updated : ['T-Shirts'] };
     setFormSettings(newSettings);
     onUpdateSettings(newSettings);
+    await updateCategories(newSettings.categories);
+    window.dispatchEvent(new Event('crownborn_db_updated'));
   };
 
-  const handleResetCategories = () => {
+  const handleResetCategories = async () => {
     const updated = DEFAULT_CATEGORIES;
     const newSettings = { ...formSettings, categories: updated };
     setFormSettings(newSettings);
     onUpdateSettings(newSettings);
+    await updateCategories(updated);
+    window.dispatchEvent(new Event('crownborn_db_updated'));
   };
 
   // -------------------- HERO & BANNER HANDLERS --------------------

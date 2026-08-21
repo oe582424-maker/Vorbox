@@ -518,7 +518,24 @@ async function startServer() {
     res.json({ success: true, id, version: inMemoryDb.version });
   });
 
-  // ==================== STORE SETTINGS & FEATURED DROP ====================
+  // ==================== STORE SETTINGS, CATEGORIES & FEATURED DROP ====================
+
+  app.get('/api/categories', (req, res) => {
+    res.json(inMemoryDb.settings.categories || DEFAULT_STORE_SETTINGS.categories);
+  });
+
+  app.put('/api/categories', (req, res) => {
+    const { categories } = req.body;
+    if (Array.isArray(categories)) {
+      inMemoryDb.settings = {
+        ...inMemoryDb.settings,
+        categories,
+      };
+      saveDatabase(inMemoryDb);
+      return res.json({ success: true, categories: inMemoryDb.settings.categories, version: inMemoryDb.version });
+    }
+    res.status(400).json({ error: 'Categories array required' });
+  });
 
   app.get('/api/settings', (req, res) => {
     res.json(inMemoryDb.settings);
