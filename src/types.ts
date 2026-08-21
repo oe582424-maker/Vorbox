@@ -6,13 +6,14 @@ export interface Product {
   originalPrice?: number;
   description: string;
   features: string[];
-  fabric: string;
+  fabric?: string;
   gsm?: string;
   images: string[];
-  sizes: ('S' | 'M' | 'L' | 'XL' | 'XXL')[];
+  sizes: string[];
   colors: {
     name: string;
     hex: string;
+    image?: string;
   }[];
   inStock: boolean;
   featured?: boolean;
@@ -23,10 +24,11 @@ export interface CartItem {
   id: string; // unique item combo id
   productId: string;
   product: Product;
-  selectedSize: 'S' | 'M' | 'L' | 'XL' | 'XXL';
+  selectedSize: string;
   selectedColor: {
     name: string;
     hex: string;
+    image?: string;
   };
   quantity: number;
 }

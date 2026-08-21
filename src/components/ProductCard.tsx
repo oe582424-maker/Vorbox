@@ -8,9 +8,9 @@ interface ProductCardProps {
   settings: StoreSettings;
   cart?: CartItem[];
   onOpenProductModal: (product: Product) => void;
-  onOpenAddToBag: (product: Product, size?: 'S' | 'M' | 'L' | 'XL' | 'XXL', color?: { name: string; hex: string }) => void;
+  onOpenAddToBag: (product: Product, size?: string, color?: { name: string; hex: string; image?: string }) => void;
   onRemoveFromCart?: (comboId: string) => void;
-  onPlaceOrder: (product: Product, size?: 'S' | 'M' | 'L' | 'XL' | 'XXL', color?: { name: string; hex: string }) => void;
+  onPlaceOrder: (product: Product, size?: string, color?: { name: string; hex: string; image?: string }) => void;
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({
@@ -22,7 +22,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   onRemoveFromCart,
   onPlaceOrder,
 }) => {
-  const [selectedSize, setSelectedSize] = useState<'S' | 'M' | 'L' | 'XL' | 'XXL'>(product.sizes[0] || 'M');
+  const [selectedSize, setSelectedSize] = useState<string>(product.sizes[0] || 'Standard');
   const [selectedColor, setSelectedColor] = useState(product.colors[0] || { name: 'Standard', hex: '#111' });
 
   // Persistent in-bag verification for the specific size and color
@@ -123,9 +123,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                 key={sz}
                 type="button"
                 onClick={() => setSelectedSize(sz)}
-                className={`w-7 h-7 text-xs font-semibold rounded-md border flex items-center justify-center transition-all ${
+                className={`min-w-[28px] h-7 px-2 text-xs font-semibold rounded-md border flex items-center justify-center transition-all cursor-pointer ${
                   selectedSize === sz
-                    ? 'bg-neutral-900 text-white border-neutral-900'
+                    ? 'bg-neutral-900 text-white border-neutral-900 shadow-xs'
                     : 'bg-neutral-50 text-neutral-700 border-neutral-200 hover:border-neutral-400'
                 }`}
               >

@@ -9,13 +9,13 @@ interface QuickOrderModalProps {
   onClose: () => void;
   product: Product | null;
   mode?: 'place_order' | 'add_to_bag';
-  initialSize?: 'S' | 'M' | 'L' | 'XL' | 'XXL';
-  initialColor?: { name: string; hex: string };
+  initialSize?: string;
+  initialColor?: { name: string; hex: string; image?: string };
   initialQuantity?: number;
   initialStep?: 1 | 2;
   settings: StoreSettings;
   onOrderSuccess: (order: Order) => void;
-  onAddToCart?: (product: Product, size: 'S' | 'M' | 'L' | 'XL' | 'XXL', color: { name: string; hex: string }, quantity: number) => void;
+  onAddToCart?: (product: Product, size: string, color: { name: string; hex: string; image?: string }, quantity: number) => void;
   onOpenSizeGuide?: () => void;
 }
 
@@ -37,10 +37,10 @@ export const QuickOrderModal: React.FC<QuickOrderModalProps> = ({
 
   const isAddToBagMode = mode === 'add_to_bag';
   const [step, setStep] = useState<1 | 2>(isAddToBagMode ? 1 : initialStep);
-  const [selectedSize, setSelectedSize] = useState<'S' | 'M' | 'L' | 'XL' | 'XXL'>(
-    initialSize || product.sizes[0] || 'M'
+  const [selectedSize, setSelectedSize] = useState<string>(
+    initialSize || product.sizes[0] || 'Standard'
   );
-  const [selectedColor, setSelectedColor] = useState<{ name: string; hex: string }>(
+  const [selectedColor, setSelectedColor] = useState<{ name: string; hex: string; image?: string }>(
     initialColor || product.colors[0] || { name: 'Standard', hex: '#111' }
   );
   const [quantity, setQuantity] = useState<number>(initialQuantity || 1);
@@ -336,7 +336,7 @@ export const QuickOrderModal: React.FC<QuickOrderModalProps> = ({
                     </button>
                   )}
                 </div>
-                <div className="grid grid-cols-5 gap-2">
+                <div className="flex flex-wrap gap-2">
                   {product.sizes.map((size) => {
                     const isSelected = selectedSize === size;
                     return (
@@ -344,7 +344,7 @@ export const QuickOrderModal: React.FC<QuickOrderModalProps> = ({
                         key={size}
                         type="button"
                         onClick={() => setSelectedSize(size)}
-                        className={`py-2.5 text-xs font-bold rounded-xl border transition-all text-center cursor-pointer ${
+                        className={`min-w-[48px] px-3.5 py-2.5 text-xs font-bold rounded-xl border transition-all text-center cursor-pointer ${
                           isSelected
                             ? 'border-neutral-900 bg-neutral-900 text-white shadow-xs ring-2 ring-neutral-900/20'
                             : 'border-neutral-200 bg-white text-neutral-800 hover:border-neutral-400'

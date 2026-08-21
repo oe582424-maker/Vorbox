@@ -49,8 +49,8 @@ export default function App() {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [quickOrderProduct, setQuickOrderProduct] = useState<Product | null>(null);
   const [quickOrderMode, setQuickOrderMode] = useState<'place_order' | 'add_to_bag'>('place_order');
-  const [quickOrderInitialSize, setQuickOrderInitialSize] = useState<'S' | 'M' | 'L' | 'XL' | 'XXL' | undefined>();
-  const [quickOrderInitialColor, setQuickOrderInitialColor] = useState<{ name: string; hex: string } | undefined>();
+  const [quickOrderInitialSize, setQuickOrderInitialSize] = useState<string | undefined>();
+  const [quickOrderInitialColor, setQuickOrderInitialColor] = useState<{ name: string; hex: string; image?: string } | undefined>();
   const [quickOrderInitialQuantity, setQuickOrderInitialQuantity] = useState<number>(1);
   const [quickOrderInitialStep, setQuickOrderInitialStep] = useState<1 | 2>(1);
   const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
@@ -59,8 +59,8 @@ export default function App() {
   const productSectionRef = useRef<HTMLDivElement>(null);
   const isSyncingRef = useRef(false);
 
-  // Clean up any legacy settings/products from localStorage so visitor browsers NEVER see stale local overrides
-  useEffect(() => {
+  // Purge any stale client-side catalog cache
+  const purgeCatalogCache = () => {
     try {
       localStorage.removeItem('crownborn_settings');
       localStorage.removeItem('crownborn_products');
@@ -74,6 +74,11 @@ export default function App() {
     } catch (e) {
       // ignore
     }
+  };
+
+  // Clean up any legacy settings/products from localStorage so visitor browsers NEVER see stale local overrides
+  useEffect(() => {
+    purgeCatalogCache();
   }, []);
 
   // Sync ONLY user-specific shopping cart to localStorage
@@ -165,8 +170,8 @@ export default function App() {
   // Cart operations
   const handleAddToCart = (
     product: Product,
-    size: 'S' | 'M' | 'L' | 'XL' | 'XXL',
-    color: { name: string; hex: string },
+    size: string,
+    color: { name: string; hex: string; image?: string },
     quantity: number = 1
   ) => {
     const comboId = `${product.id}-${size}-${color.name}`;
@@ -216,12 +221,12 @@ export default function App() {
   // Open Variant Modal for "Add to Bag"
   const handleOpenAddToBagModal = (
     product: Product,
-    size?: 'S' | 'M' | 'L' | 'XL' | 'XXL',
-    color?: { name: string; hex: string }
+    size?: string,
+    color?: { name: string; hex: string; image?: string }
   ) => {
     setQuickOrderMode('add_to_bag');
     setQuickOrderProduct(product);
-    setQuickOrderInitialSize(size || product.sizes[0] || 'M');
+    setQuickOrderInitialSize(size || product.sizes[0] || 'Standard');
     setQuickOrderInitialColor(color || product.colors[0] || { name: 'Standard', hex: '#111' });
     setQuickOrderInitialQuantity(1);
     setQuickOrderInitialStep(1);
@@ -230,12 +235,12 @@ export default function App() {
   // Open Quick Order from ProductCard "Place Order" (Step 1: Choose Variant -> Step 2 Delivery)
   const handleOpenQuickOrder = (
     product: Product,
-    size?: 'S' | 'M' | 'L' | 'XL' | 'XXL',
-    color?: { name: string; hex: string }
+    size?: string,
+    color?: { name: string; hex: string; image?: string }
   ) => {
     setQuickOrderMode('place_order');
     setQuickOrderProduct(product);
-    setQuickOrderInitialSize(size || product.sizes[0] || 'M');
+    setQuickOrderInitialSize(size || product.sizes[0] || 'Standard');
     setQuickOrderInitialColor(color || product.colors[0] || { name: 'Standard', hex: '#111' });
     setQuickOrderInitialQuantity(1);
     setQuickOrderInitialStep(1); // Starts at Step 1: Variant Selection
@@ -244,8 +249,8 @@ export default function App() {
   // Open Quick Order from ProductModal "Place Order (Cash on Delivery)" (Step 2: Delivery Details)
   const handleBuyNowFromModal = (
     product: Product,
-    size: 'S' | 'M' | 'L' | 'XL' | 'XXL',
-    color: { name: string; hex: string },
+    size: string,
+    color: { name: string; hex: string; image?: string },
     quantity: number
   ) => {
     setSelectedProduct(null);
@@ -289,6 +294,7 @@ export default function App() {
   // Admin product operations
   const handleAddProduct = async (newProd: Product) => {
     try {
+      purgeCatalogCache();
       const saved = await api.createProduct(newProd);
       const finalProduct = saved || newProd;
       setProducts((prev) => [finalProduct, ...prev.filter((p) => p.id !== finalProduct.id)]);
@@ -300,6 +306,7 @@ export default function App() {
 
   const handleUpdateProduct = async (updatedProd: Product) => {
     try {
+      purgeCatalogCache();
       const saved = await api.updateProduct(updatedProd);
       const finalProduct = saved || updatedProd;
       setProducts((prev) =>
@@ -313,6 +320,7 @@ export default function App() {
 
   const handleDeleteProduct = async (productId: string) => {
     try {
+      purgeCatalogCache();
       setProducts((prev) => prev.filter((p) => p.id !== productId));
       await api.deleteProduct(productId);
       await fetchLatestStoreData();
@@ -322,12 +330,14 @@ export default function App() {
   };
 
   const handleUpdateSettings = async (newSettings: StoreSettings) => {
+    purgeCatalogCache();
     setSettings(newSettings);
     await api.updateSettings(newSettings);
     await fetchLatestStoreData();
   };
 
   const handleResetDemoData = async () => {
+    purgeCatalogCache();
     setProducts(INITIAL_PRODUCTS);
     setSettings(DEFAULT_STORE_SETTINGS);
     setOrders([]);

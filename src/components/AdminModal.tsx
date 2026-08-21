@@ -131,6 +131,9 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   const [newImageUrlInput, setNewImageUrlInput] = useState('');
   const [newColorName, setNewColorName] = useState('');
   const [newColorHex, setNewColorHex] = useState('#111111');
+  const [newColorImage, setNewColorImage] = useState('');
+  const [customSizeInput, setCustomSizeInput] = useState('');
+  const [categoryMode, setCategoryMode] = useState<'preset' | 'custom'>('preset');
   const [customCategoryInput, setCustomCategoryInput] = useState('');
 
   const [productForm, setProductForm] = useState<Partial<Product>>({
@@ -139,8 +142,8 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     price: 550,
     originalPrice: 700,
     description: '',
-    fabric: '100% Combed Cotton',
-    gsm: '220 GSM',
+    fabric: '',
+    gsm: '',
     images: ['https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=1000&q=80'],
     sizes: ['M', 'L', 'XL', 'XXL'],
     colors: [
@@ -150,7 +153,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     inStock: true,
     featured: true,
     tag: 'Best Seller',
-    features: ['220 GSM 100% Combed Cotton', 'Pre-shrunk finish', 'Reinforced neck ribbing'],
+    features: ['Pre-shrunk finish', 'Reinforced stitching'],
   });
 
   const correctPassword = settings.adminPassword || 'akm125@#155Ab12*';
@@ -346,7 +349,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     reader.readAsDataURL(file);
   };
 
-  const handleToggleSize = (size: 'S' | 'M' | 'L' | 'XL' | 'XXL') => {
+  const handleToggleSize = (size: string) => {
     const currentSizes = productForm.sizes || ['M', 'L', 'XL'];
     if (currentSizes.includes(size)) {
       if (currentSizes.length === 1) return;
@@ -356,15 +359,39 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     }
   };
 
+  const handleAddCustomSize = () => {
+    const trimmed = customSizeInput.trim();
+    if (!trimmed) return;
+    const currentSizes = productForm.sizes || [];
+    if (!currentSizes.includes(trimmed)) {
+      setProductForm({ ...productForm, sizes: [...currentSizes, trimmed] });
+    }
+    setCustomSizeInput('');
+  };
+
+  const handleRemoveSize = (sizeToRemove: string) => {
+    const currentSizes = productForm.sizes || [];
+    if (currentSizes.length <= 1) return;
+    setProductForm({ ...productForm, sizes: currentSizes.filter((s) => s !== sizeToRemove) });
+  };
+
   const handleAddColor = () => {
     if (!newColorName.trim()) return;
     const currentColors = productForm.colors || [];
     setProductForm({
       ...productForm,
-      colors: [...currentColors, { name: newColorName.trim(), hex: newColorHex }],
+      colors: [
+        ...currentColors,
+        {
+          name: newColorName.trim(),
+          hex: newColorHex,
+          image: newColorImage.trim() || undefined,
+        },
+      ],
     });
     setNewColorName('');
     setNewColorHex('#111111');
+    setNewColorImage('');
   };
 
   const handleRemoveColor = (index: number) => {
@@ -380,38 +407,110 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     e.preventDefault();
     if (!productForm.name || !productForm.price) return;
 
+    // Resolve category
+    let finalCategory = productForm.category || activeCategories[0] || 'T-Shirts';
+    if (categoryMode === 'custom' && customCategoryInput.trim()) {
+      finalCategory = customCategoryInput.trim();
+      // If it's a new category not yet in store categories, add it to store settings
+      if (!activeCategories.some((c) => c.toLowerCase() === finalCategory.toLowerCase())) {
+        const updatedCategories = [...activeCategories, finalCategory];
+        const newSettings = { ...formSettings, categories: updatedCategories };
+        setFormSettings(newSettings);
+        onUpdateSettings(newSettings);
+      }
+    }
+
+    const cleanedSizes = productForm.sizes?.length ? productForm.sizes : ['Standard'];
+    const cleanedColors = productForm.colors?.length
+      ? productForm.colors
+      : [{ name: 'Standard', hex: '#111111' }];
+
+    const cleanedFabric = productForm.fabric?.trim() || undefined;
+    const cleanedGsm = productForm.gsm?.trim() || undefined;
+    const cleanedDescription = productForm.description?.trim() || '';
+    const cleanedFeatures = productForm.features?.filter(Boolean) || [];
+
     if (editingProductId) {
-      onUpdateProduct({
-        ...(productForm as Product),
+      const updatedProduct: Product = {
         id: editingProductId,
-      });
+        name: productForm.name.trim(),
+        category: finalCategory,
+        price: Number(productForm.price) || 0,
+        originalPrice: productForm.originalPrice ? Number(productForm.originalPrice) : undefined,
+        description: cleanedDescription,
+        features: cleanedFeatures,
+        fabric: cleanedFabric,
+        gsm: cleanedGsm,
+        images: productForm.images?.length ? productForm.images : ['https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=1000&q=80'],
+        sizes: cleanedSizes,
+        colors: cleanedColors,
+        inStock: productForm.inStock ?? true,
+        featured: productForm.featured ?? false,
+        tag: productForm.tag?.trim() || undefined,
+      };
+      onUpdateProduct(updatedProduct);
       setEditingProductId(null);
     } else {
       const newProd: Product = {
         id: `cb-${Date.now().toString().slice(-5)}`,
-        name: productForm.name || 'New Clothing Item',
-        category: productForm.category || activeCategories[0] || 'T-Shirts',
+        name: productForm.name.trim(),
+        category: finalCategory,
         price: Number(productForm.price) || 500,
         originalPrice: productForm.originalPrice ? Number(productForm.originalPrice) : undefined,
-        description: productForm.description || `Premium minimalist streetwear crafted for everyday comfort in ${settings.city}.`,
-        features: productForm.features?.length ? productForm.features : ['100% Combed Cotton', 'Pre-shrunk', 'Regular fit'],
-        fabric: productForm.fabric || '100% Combed Cotton',
-        gsm: productForm.gsm || '220 GSM',
+        description: cleanedDescription,
+        features: cleanedFeatures,
+        fabric: cleanedFabric,
+        gsm: cleanedGsm,
         images: productForm.images?.length ? productForm.images : ['https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=1000&q=80'],
-        sizes: productForm.sizes?.length ? productForm.sizes : ['M', 'L', 'XL', 'XXL'],
-        colors: productForm.colors?.length ? productForm.colors : [{ name: 'Onyx Black', hex: '#111' }],
+        sizes: cleanedSizes,
+        colors: cleanedColors,
         inStock: productForm.inStock ?? true,
         featured: productForm.featured ?? false,
-        tag: productForm.tag,
+        tag: productForm.tag?.trim() || undefined,
       };
       onAddProduct(newProd);
     }
     setIsAddingProduct(false);
+    setCategoryMode('preset');
+    setCustomCategoryInput('');
   };
 
   const startEditProduct = (prod: Product) => {
     setProductForm({ ...prod });
     setEditingProductId(prod.id);
+    if (!activeCategories.includes(prod.category)) {
+      setCategoryMode('custom');
+      setCustomCategoryInput(prod.category);
+    } else {
+      setCategoryMode('preset');
+      setCustomCategoryInput('');
+    }
+    setIsAddingProduct(true);
+  };
+
+  const startAddProduct = () => {
+    setProductForm({
+      name: '',
+      category: activeCategories[0] || 'T-Shirts',
+      price: 550,
+      originalPrice: 700,
+      description: '',
+      fabric: '',
+      gsm: '',
+      images: ['https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=1000&q=80'],
+      sizes: ['M', 'L', 'XL', 'XXL'],
+      colors: [
+        { name: 'Onyx Black', hex: '#111111' },
+        { name: 'Chalk White', hex: '#fafaf9' },
+      ],
+      inStock: true,
+      featured: false,
+      tag: '',
+      features: [],
+    });
+    setEditingProductId(null);
+    setCategoryMode('preset');
+    setCustomCategoryInput('');
     setIsAddingProduct(true);
   };
 
@@ -678,45 +777,23 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 
                   {!isAddingProduct && (
                     <button
-                      onClick={() => {
-                        setEditingProductId(null);
-                        setProductForm({
-                          name: '',
-                          category: activeCategories[0] || 'T-Shirts',
-                          price: 550,
-                          originalPrice: 700,
-                          description: '',
-                          fabric: '100% Combed Cotton',
-                          gsm: '220 GSM',
-                          images: ['https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=1000&q=80'],
-                          sizes: ['M', 'L', 'XL', 'XXL'],
-                          colors: [
-                            { name: 'Onyx Black', hex: '#111111' },
-                            { name: 'Chalk White', hex: '#fafaf9' },
-                          ],
-                          inStock: true,
-                          featured: true,
-                          tag: 'Best Seller',
-                          features: ['220 GSM 100% Combed Cotton', 'Pre-shrunk', 'Regular fit'],
-                        });
-                        setIsAddingProduct(true);
-                      }}
+                      onClick={startAddProduct}
                       className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-neutral-950 text-white text-xs font-semibold rounded-xl hover:bg-neutral-800 transition-colors shadow-xs cursor-pointer"
                     >
                       <Plus className="w-4 h-4" />
-                      <span>Add New Clothing Item</span>
+                      <span>Add New Product / Bundle</span>
                     </button>
                   )}
                 </div>
 
                 {/* Add / Edit Product Form */}
                 {isAddingProduct ? (
-                  <form onSubmit={handleSaveProduct} className="bg-neutral-50 p-4 sm:p-6 rounded-2xl border border-neutral-300 space-y-5">
+                  <form onSubmit={handleSaveProduct} className="bg-neutral-50 p-4 sm:p-6 rounded-2xl border border-neutral-300 space-y-6">
                     <div className="flex items-center justify-between border-b border-neutral-200 pb-3">
                       <div className="flex items-center gap-2">
                         <span className="w-2 h-2 rounded-full bg-emerald-500" />
                         <h4 className="font-bold text-sm text-neutral-900">
-                          {editingProductId ? 'Edit Product & Specs' : 'Add New Clothing Product to CrownBorn'}
+                          {editingProductId ? 'Edit Product & Specifications' : 'Add New Item / Outfit / Bundle to CrownBorn'}
                         </h4>
                       </div>
                       <button
@@ -728,31 +805,60 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                       </button>
                     </div>
 
-                    {/* Basic Details */}
+                    {/* 1. Basic Details */}
                     <div className="space-y-3">
-                      <h5 className="text-[11px] font-bold uppercase tracking-wider text-neutral-500">1. Basic Details</h5>
+                      <div className="flex items-center justify-between">
+                        <h5 className="text-[11px] font-bold uppercase tracking-wider text-neutral-500">1. Basic Information & Pricing</h5>
+                      </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                        <div>
+                        <div className="sm:col-span-2">
                           <label className="block font-semibold text-neutral-700 mb-1">
-                            Product Name <span className="text-rose-500">*</span>
+                            Product / Bundle Title <span className="text-rose-500">*</span>
                           </label>
                           <input
                             type="text"
                             required
                             value={productForm.name || ''}
                             onChange={(e) => setProductForm({ ...productForm, name: e.target.value })}
-                            placeholder="e.g. Heavyweight Boxy Drop-Shoulder Tee"
+                            placeholder="e.g. Heavyweight Boxy Drop-Shoulder Tee OR Urban Minimalist Combo Set"
                             className="w-full p-2.5 bg-white border border-neutral-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-neutral-900"
                           />
                         </div>
 
-                        <div>
-                          <label className="block font-semibold text-neutral-700 mb-1">Category / Collection</label>
-                          <div className="flex gap-1.5">
+                        {/* Category Selector (Predefined vs Custom) */}
+                        <div className="sm:col-span-2 space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <label className="block font-semibold text-neutral-700">
+                              Category / Collection <span className="text-rose-500">*</span>
+                            </label>
+                            <div className="flex items-center gap-1 text-[11px]">
+                              <button
+                                type="button"
+                                onClick={() => setCategoryMode('preset')}
+                                className={`px-2 py-0.5 rounded cursor-pointer transition-colors ${
+                                  categoryMode === 'preset' ? 'bg-neutral-900 text-white font-bold' : 'text-neutral-500 hover:text-neutral-800'
+                                }`}
+                              >
+                                Select Preset
+                              </button>
+                              <span className="text-neutral-300">|</span>
+                              <button
+                                type="button"
+                                onClick={() => setCategoryMode('custom')}
+                                className={`px-2 py-0.5 rounded cursor-pointer transition-colors ${
+                                  categoryMode === 'custom' ? 'bg-neutral-900 text-white font-bold' : 'text-neutral-500 hover:text-neutral-800'
+                                }`}
+                              >
+                                Type Custom Name
+                              </button>
+                            </div>
+                          </div>
+
+                          {categoryMode === 'preset' ? (
                             <select
                               value={productForm.category || activeCategories[0] || 'T-Shirts'}
                               onChange={(e) => setProductForm({ ...productForm, category: e.target.value })}
-                              className="flex-1 p-2.5 bg-white border border-neutral-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-neutral-900"
+                              className="w-full p-2.5 bg-white border border-neutral-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-neutral-900"
                             >
                               {activeCategories.map((cat) => (
                                 <option key={cat} value={cat}>
@@ -760,7 +866,15 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                 </option>
                               ))}
                             </select>
-                          </div>
+                          ) : (
+                            <input
+                              type="text"
+                              value={customCategoryInput}
+                              onChange={(e) => setCustomCategoryInput(e.target.value)}
+                              placeholder="e.g. Full Set, Combo Drops, Accessories, Winter Collection"
+                              className="w-full p-2.5 bg-white border border-neutral-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-neutral-900"
+                            />
+                          )}
                         </div>
 
                         <div>
@@ -790,82 +904,232 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                           />
                         </div>
 
+                        <div className="sm:col-span-2">
+                          <label className="block font-semibold text-neutral-700 mb-1">
+                            Badge Tag (Optional)
+                          </label>
+                          <input
+                            type="text"
+                            value={productForm.tag || ''}
+                            onChange={(e) => setProductForm({ ...productForm, tag: e.target.value })}
+                            placeholder="e.g. Best Seller, Combo Drop, Limited Edition, New Arrival"
+                            className="w-full p-2.5 bg-white border border-neutral-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-neutral-900"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 2. Custom Size Specifications */}
+                    <div className="space-y-3 border-t border-neutral-200 pt-4">
+                      <div className="flex items-center justify-between">
+                        <h5 className="text-[11px] font-bold uppercase tracking-wider text-neutral-500">
+                          2. Size Options (Standard Sizes or Custom Sets / Free Size)
+                        </h5>
+                        <span className="text-[11px] text-neutral-500">
+                          {(productForm.sizes || []).length} active size(s)
+                        </span>
+                      </div>
+
+                      {/* Quick Standard Size Toggles */}
+                      <div className="space-y-1.5">
+                        <p className="text-[11px] text-neutral-500">Quick toggle standard sizes:</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {['S', 'M', 'L', 'XL', 'XXL'].map((sz) => {
+                            const active = productForm.sizes?.includes(sz);
+                            return (
+                              <button
+                                key={sz}
+                                type="button"
+                                onClick={() => handleToggleSize(sz)}
+                                className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition-all cursor-pointer ${
+                                  active
+                                    ? 'bg-neutral-900 text-white border-neutral-900 shadow-2xs'
+                                    : 'bg-white text-neutral-600 border-neutral-300 hover:border-neutral-500'
+                                }`}
+                              >
+                                {sz} {active && '✓'}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Custom Size Input */}
+                      <div className="space-y-1.5 pt-1">
+                        <p className="text-[11px] text-neutral-500">Or add custom size labels (e.g. "Free Size", "One Size", "Polo M + Pants L"):</p>
+                        <div className="flex gap-2 max-w-md">
+                          <input
+                            type="text"
+                            value={customSizeInput}
+                            onChange={(e) => setCustomSizeInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleAddCustomSize();
+                              }
+                            }}
+                            placeholder='e.g. Free Size, One Size, Set M (Chest 38 / Waist 30)'
+                            className="flex-1 p-2 bg-white border border-neutral-300 rounded-lg text-xs focus:outline-hidden focus:ring-2 focus:ring-neutral-900"
+                          />
+                          <button
+                            type="button"
+                            onClick={handleAddCustomSize}
+                            className="px-3.5 py-2 bg-neutral-900 text-white text-xs font-semibold rounded-lg hover:bg-neutral-800 cursor-pointer"
+                          >
+                            + Add Size
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Active Sizes List */}
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {(productForm.sizes || []).map((sz) => (
+                          <span
+                            key={sz}
+                            className="inline-flex items-center gap-1.5 bg-neutral-900 text-white px-2.5 py-1 rounded-lg text-xs font-bold shadow-2xs"
+                          >
+                            <span>{sz}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveSize(sz)}
+                              className="text-neutral-400 hover:text-rose-300 cursor-pointer"
+                              title="Remove size"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* 3. Description & Optional Fabric / Specifications */}
+                    <div className="space-y-3 border-t border-neutral-200 pt-4">
+                      <h5 className="text-[11px] font-bold uppercase tracking-wider text-neutral-500">
+                        3. Description & Specifications (Optional Clothing Badges)
+                      </h5>
+
+                      <div>
+                        <label className="block font-semibold text-neutral-700 text-xs mb-1">
+                          Product Description (Supports Multi-line / Outfits / Bundle breakdown)
+                        </label>
+                        <textarea
+                          rows={4}
+                          value={productForm.description || ''}
+                          onChange={(e) => setProductForm({ ...productForm, description: e.target.value })}
+                          placeholder="Describe the fabric feel, bundle contents (e.g. 1x Drop-shoulder Tee + 1x Heavy Twill Shorts), sizing recommendations, care instructions, or styling tips..."
+                          className="w-full p-2.5 bg-white border border-neutral-300 rounded-lg text-xs focus:outline-hidden focus:ring-2 focus:ring-neutral-900 leading-relaxed font-sans"
+                        />
+                      </div>
+
+                      {/* Key Bullet Points / Features */}
+                      <div className="space-y-2">
+                        <label className="block font-semibold text-neutral-700 text-xs">
+                          Bullet Highlights / Specifications (Optional)
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={newFeatureInput}
+                            onChange={(e) => setNewFeatureInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleAddFeature();
+                              }
+                            }}
+                            placeholder="e.g. Includes 1x Polo + 1x Chino Pants OR Pre-shrunk colorfast finish"
+                            className="flex-1 p-2 bg-white border border-neutral-300 rounded-lg text-xs focus:outline-hidden focus:ring-2 focus:ring-neutral-900"
+                          />
+                          <button
+                            type="button"
+                            onClick={handleAddFeature}
+                            className="px-3.5 py-2 bg-neutral-900 text-white text-xs font-semibold rounded-lg hover:bg-neutral-800 cursor-pointer"
+                          >
+                            + Add Bullet
+                          </button>
+                        </div>
+
+                        {/* Active Features List */}
+                        <div className="space-y-1.5 pt-1">
+                          {(productForm.features || []).map((feat, idx) => (
+                            <div
+                              key={idx}
+                              className="flex items-center justify-between bg-white px-2.5 py-1.5 rounded-lg border border-neutral-200 text-xs"
+                            >
+                              <span className="text-neutral-700">• {feat}</span>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveFeature(idx)}
+                                className="text-neutral-400 hover:text-rose-600 p-0.5 cursor-pointer"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Optional Fabric and GSM Fields */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-1">
                         <div>
-                          <label className="block font-semibold text-neutral-700 mb-1">Fabric Material</label>
+                          <label className="block font-semibold text-neutral-700 mb-1">
+                            Fabric Material <span className="text-neutral-400 font-normal">(Optional)</span>
+                          </label>
                           <input
                             type="text"
                             value={productForm.fabric || ''}
                             onChange={(e) => setProductForm({ ...productForm, fabric: e.target.value })}
-                            placeholder="e.g. 100% Organic Combed Cotton"
+                            placeholder="e.g. 100% Organic Combed Cotton (Leave blank for sets/combos)"
                             className="w-full p-2.5 bg-white border border-neutral-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-neutral-900"
                           />
+                          <p className="text-[10px] text-neutral-400 mt-0.5">If left empty, the fabric badge will be cleanly hidden.</p>
                         </div>
 
                         <div>
-                          <label className="block font-semibold text-neutral-700 mb-1">Fabric Weight / GSM</label>
+                          <label className="block font-semibold text-neutral-700 mb-1">
+                            Fabric Weight / GSM <span className="text-neutral-400 font-normal">(Optional)</span>
+                          </label>
                           <input
                             type="text"
                             value={productForm.gsm || ''}
                             onChange={(e) => setProductForm({ ...productForm, gsm: e.target.value })}
-                            placeholder="e.g. 220 GSM"
+                            placeholder="e.g. 220 GSM (Leave blank if not applicable)"
                             className="w-full p-2.5 bg-white border border-neutral-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-neutral-900"
                           />
+                          <p className="text-[10px] text-neutral-400 mt-0.5">If left empty, the GSM badge will be cleanly hidden.</p>
                         </div>
                       </div>
-
-                      <div>
-                        <label className="block font-semibold text-neutral-700 text-xs mb-1">Description</label>
-                        <textarea
-                          rows={2}
-                          value={productForm.description || ''}
-                          onChange={(e) => setProductForm({ ...productForm, description: e.target.value })}
-                          placeholder="Describe the silhouette, fit, comfort, and Bangladesh weather suitability..."
-                          className="w-full p-2.5 bg-white border border-neutral-300 rounded-lg text-xs focus:outline-hidden focus:ring-2 focus:ring-neutral-900"
-                        />
-                      </div>
                     </div>
 
-                    {/* Sizes Selection */}
-                    <div className="space-y-2 border-t border-neutral-200 pt-3">
-                      <h5 className="text-[11px] font-bold uppercase tracking-wider text-neutral-500">
-                        2. Available Sizes (Bangladeshi Standard)
-                      </h5>
-                      <div className="flex flex-wrap gap-2">
-                        {(['S', 'M', 'L', 'XL', 'XXL'] as const).map((sz) => {
-                          const active = productForm.sizes?.includes(sz);
-                          return (
-                            <button
-                              key={sz}
-                              type="button"
-                              onClick={() => handleToggleSize(sz)}
-                              className={`px-4 py-2 text-xs font-bold rounded-lg border transition-all cursor-pointer ${
-                                active
-                                  ? 'bg-neutral-900 text-white border-neutral-900 shadow-xs'
-                                  : 'bg-white text-neutral-500 border-neutral-300 hover:border-neutral-500'
-                              }`}
-                            >
-                              Size {sz}
-                            </button>
-                          );
-                        })}
+                    {/* 4. Color / Variant Tagging */}
+                    <div className="space-y-3 border-t border-neutral-200 pt-4">
+                      <div className="flex items-center justify-between">
+                        <h5 className="text-[11px] font-bold uppercase tracking-wider text-neutral-500">
+                          4. Color & Variant Tagging
+                        </h5>
+                        <span className="text-[11px] text-neutral-500">
+                          {(productForm.colors || []).length} variant(s)
+                        </span>
                       </div>
-                    </div>
 
-                    {/* Color Options */}
-                    <div className="space-y-2 border-t border-neutral-200 pt-3">
-                      <h5 className="text-[11px] font-bold uppercase tracking-wider text-neutral-500">3. Color Variations</h5>
+                      {/* Active Variants */}
                       <div className="flex flex-wrap gap-2">
                         {(productForm.colors || []).map((clr, idx) => (
                           <div
                             key={idx}
-                            className="flex items-center gap-1.5 bg-white px-2.5 py-1.5 rounded-lg border border-neutral-300 text-xs shadow-2xs"
+                            className="flex items-center gap-2 bg-white px-2.5 py-1.5 rounded-lg border border-neutral-300 text-xs shadow-2xs"
                           >
-                            <span className="w-3.5 h-3.5 rounded-full border border-neutral-300" style={{ backgroundColor: clr.hex }} />
+                            {clr.image ? (
+                              <img src={clr.image} alt={clr.name} className="w-5 h-5 rounded object-cover border border-neutral-300" referrerPolicy="no-referrer" />
+                            ) : (
+                              <span className="w-4 h-4 rounded-full border border-neutral-300" style={{ backgroundColor: clr.hex }} />
+                            )}
                             <span className="font-medium text-neutral-800">{clr.name}</span>
                             <button
                               type="button"
                               onClick={() => handleRemoveColor(idx)}
-                              className="text-neutral-400 hover:text-rose-600 ml-1 p-0.5 cursor-pointer"
+                              className="text-neutral-400 hover:text-rose-600 ml-0.5 p-0.5 cursor-pointer"
+                              title="Remove variant"
                             >
                               <X className="w-3 h-3" />
                             </button>
@@ -873,34 +1137,53 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                         ))}
                       </div>
 
-                      {/* Add Color */}
-                      <div className="flex items-center gap-2 max-w-md pt-1">
-                        <input
-                          type="color"
-                          value={newColorHex}
-                          onChange={(e) => setNewColorHex(e.target.value)}
-                          className="w-8 h-8 rounded border border-neutral-300 cursor-pointer p-0.5 bg-white"
-                        />
-                        <input
-                          type="text"
-                          value={newColorName}
-                          onChange={(e) => setNewColorName(e.target.value)}
-                          placeholder="Color Name (e.g. Navy Blue)"
-                          className="flex-1 p-2 bg-white border border-neutral-300 rounded-lg text-xs focus:outline-hidden"
-                        />
-                        <button
-                          type="button"
-                          onClick={handleAddColor}
-                          className="px-3 py-2 bg-neutral-900 text-white text-xs font-semibold rounded-lg hover:bg-neutral-800 cursor-pointer"
-                        >
-                          + Add Color
-                        </button>
+                      {/* Add Variant Form */}
+                      <div className="space-y-2 bg-white p-3 rounded-xl border border-neutral-200 text-xs">
+                        <p className="font-semibold text-neutral-700">Add New Variant Tag:</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="color"
+                              value={newColorHex}
+                              onChange={(e) => setNewColorHex(e.target.value)}
+                              className="w-8 h-8 rounded border border-neutral-300 cursor-pointer p-0.5 bg-white shrink-0"
+                              title="Pick Swatch Color"
+                            />
+                            <input
+                              type="text"
+                              value={newColorName}
+                              onChange={(e) => setNewColorName(e.target.value)}
+                              placeholder="Variant Name (e.g. Navy Polo + Olive Chino)"
+                              className="flex-1 p-2 bg-neutral-50 border border-neutral-300 rounded-lg text-xs focus:outline-hidden"
+                            />
+                          </div>
+
+                          <div>
+                            <input
+                              type="text"
+                              value={newColorImage}
+                              onChange={(e) => setNewColorImage(e.target.value)}
+                              placeholder="Optional Variant Image URL (https://...)"
+                              className="w-full p-2 bg-neutral-50 border border-neutral-300 rounded-lg text-xs focus:outline-hidden"
+                            />
+                          </div>
+
+                          <div>
+                            <button
+                              type="button"
+                              onClick={handleAddColor}
+                              className="w-full py-2 bg-neutral-900 text-white text-xs font-semibold rounded-lg hover:bg-neutral-800 cursor-pointer text-center"
+                            >
+                              + Add Variant Tag
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     </div>
 
-                    {/* Images Manager */}
-                    <div className="space-y-2 border-t border-neutral-200 pt-3">
-                      <h5 className="text-[11px] font-bold uppercase tracking-wider text-neutral-500">4. Product Images</h5>
+                    {/* 5. Images Manager */}
+                    <div className="space-y-3 border-t border-neutral-200 pt-4">
+                      <h5 className="text-[11px] font-bold uppercase tracking-wider text-neutral-500">5. Product Photos & Media</h5>
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                         {(productForm.images || []).map((img, idx) => (
                           <div key={idx} className="relative group bg-white rounded-lg border border-neutral-300 overflow-hidden aspect-square">
@@ -959,8 +1242,8 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                       </div>
                     </div>
 
-                    {/* Stock & Feature Flags */}
-                    <div className="flex items-center gap-6 border-t border-neutral-200 pt-3 text-xs">
+                    {/* 6. Stock & Feature Flags */}
+                    <div className="flex items-center gap-6 border-t border-neutral-200 pt-4 text-xs">
                       <label className="flex items-center gap-2 cursor-pointer">
                         <input
                           type="checkbox"
@@ -983,7 +1266,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                     </div>
 
                     {/* Save Product Action */}
-                    <div className="flex items-center justify-end gap-2 pt-3 border-t border-neutral-200">
+                    <div className="flex items-center justify-end gap-2 pt-4 border-t border-neutral-200">
                       <button
                         type="button"
                         onClick={() => setIsAddingProduct(false)}
